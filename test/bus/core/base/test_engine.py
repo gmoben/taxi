@@ -1,4 +1,6 @@
+from concurrent.futures import ThreadPoolExecutor
 import inspect
+import time
 
 import mock
 import pytest
@@ -33,55 +35,50 @@ def test_publish(engine):
     engine.publish('blah', '1234')
 
 
-def test_subscribe(engine_cls):
-    engine1 = engine_cls()
-    engine2 = engine_cls()
+def test_subscribe(engine, engine_cls):
+    channel = 'test'
+    payload = 'payload'
 
-    engine1.connect()
-    engine2.connect()
+    callback = mock.MagicMock(return_value=None)
 
-    callback = mock.MagicMock()
+    engine.connect()
+    engine.subscribe(channel, callback)
 
-    engine1.subscribe('blah', callback)
+    time.sleep(1)
 
-    engine2.publish('blah', 'payload')
+    e2 = engine_cls()
+    e2.connect()
+    e2.publish(channel, payload)
 
-    msg = {
-        'subject': 'blah',
-        'payload': 'payload'
-    }
+    callback.assert_called_once()
 
-    assert callback.assert_called_once_with(msg)
+def test_unsubscribe(engine, engine_cls):
+    channel = 'test'
+    payload = 'payload'
 
+    with pytest.raises(Exception):
+         client.unsubscribe(channel)
 
-def test_unsubscribe(engine_cls):
-    engine1 = engine_cls()
-    engine2 = engine_cls()
+    callback = mock.MagicMock(return_value=None)
 
-    engine1.connect()
-    engine2.connect()
+    engine.subscribe(channel, callback=callback)
 
-    # with pytest.raises(Exception):
-    #     engine1.unsubscribe('1234')
+    time.sleep(0.5)
 
-    callback = mock.MagicMock()
+    e2 = engine_cls()
+    e2.connect()
+    e2.publish(channel, payload)
+    e2.close()
 
-    msg = {
-        'subject': '1234',
-        'payload': 'payload'
-    }
+    callback.assert_called_once()
 
-    engine1.subscribe('1234', callback)
+    engine.unsubscribe(channel)
 
-    engine2.publish('1234', 'payload')
+    time.sleep(0.5)
+    e2.publish(channel, payload)
 
-    callback.assert_called_once_with(msg)
-
-    engine1.unsubscribe('1234')
-
-    engine2.publish('1234', 'payload')
-
-    callback.assert_called_once_with(msg)
+    time.sleep(0.5)
+    callback.assert_called_once()
 
 
 def test_matches_subject(engine):
@@ -92,6 +89,7 @@ def test_matches_subject(engine):
     assert engine.matches_subject('1234.*', '1234.5678')
     assert not engine.matches_subject('1234.*', '1234')
     # TODO: add more cases
+
 
 def test_get_subtopic_pattern(engine):
     pass

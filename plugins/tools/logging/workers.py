@@ -4,9 +4,8 @@ import sys
 import time
 from pprint import pformat
 
-from bus.core import Worker
-from bus.subjects import AUDIO, ANALYTICS
-from bus.util import subtopic
+from taxi.core import Worker
+from taxi.util import subtopic
 
 logging.basicConfig(stream=sys.stdout)
 LOG = logging.getLogger(__name__)

@@ -2,11 +2,11 @@ from contextlib import contextmanager
 
 import pytest
 
-from bus.core.base import ClientFactory, NodeFactory, ManagerFactory, WorkerFactory
-from bus.util import get_concrete_engine, server_context, list_modules, subtopic
+from taxi.core.base import ClientFactory, NodeFactory, ManagerFactory, WorkerFactory
+from taxi.util import get_concrete_engine, server_context, list_modules, subtopic
 
 
-ENGINE_MODULES = list_modules('bus.core.engines')
+ENGINE_MODULES = list_modules('taxi.core.engines')
 
 
 @contextmanager

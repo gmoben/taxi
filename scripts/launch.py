@@ -39,6 +39,10 @@ def build_all(client, parallel=True):
     del dockerfiles[PROJECT_NAME]
 
     # Build the rest of the images
+
+    if not len(dockerfiles):
+        return
+
     max_workers = len(dockerfiles) if parallel else 1
     with ThreadPoolExecutor(max_workers=max_workers) as pool:
         args = [(client, image_name, filepath) for image_name, filepath in dockerfiles.items()]
@@ -48,17 +52,13 @@ def build_all(client, parallel=True):
 def run_loggers(client, network):
     module = 'plugins.tools.logging'
     return [
-        # run(client, network, 'base', 'msglog',
-        #     subtopic(module, 'workers'), 'MessageLogger'),
-        run(client, network, 'base', 'ttslog',
-            subtopic(module, 'workers'), 'TTSLogger')
+        run(client, network, 'base', 'msglog',
+            subtopic(module, 'workers'), 'MessageLogger')
     ]
 
 
 def wait_for_ips(client, network, timeout=5):
-
     containers = client.containers.list()
-
     LOG.info('Waiting on IPs for %s', [x.name for x in containers])
 
     def _ip(container):
@@ -80,7 +80,7 @@ def wait_for_ips(client, network, timeout=5):
 def run_all(client, network='bridge'):
 
     # Start nats
-    gnatsd = client.containers.run('nats', name='nats-main', networks=[network], detach=True)
+    gnatsd = client.containers.run('nats', name='nats-main', network=network, detach=True)
     wait_for_ips(client, network)
 
     containers = [gnatsd]

@@ -1,3 +1,0 @@
-futures==3.0.5
-pexpect==4.2.1
-PyYAML==3.12

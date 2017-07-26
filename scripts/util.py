@@ -87,8 +87,6 @@ def build_image(client, image_name, df=None, **kwargs):
 def run_docker(client, network, image, name, module=None, classname=None,
                cmd=None, detach=True, debug=False, threads=None, **kwargs):
 
-    networks = [network] if not hasattr(network, '__iter__') else network
-
     if not cmd:
         if module and classname:
             cmd = 'python /opt/scripts/run_worker.py {} {}'.format(module, classname)
@@ -101,10 +99,8 @@ def run_docker(client, network, image, name, module=None, classname=None,
 
     volumes = {
         'scripts': '/opt/scripts',
-        'bus': '/opt/pylibs/bus',
-        'plugins': '/opt/pylibs/plugins',
-        'test/data/audio': '/opt/audio',
-        'test/data/models': '/opt/svar/models'
+        'taxi': '/opt/pylibs/taxi',
+        'plugins': '/opt/pylibs/plugins'
     }
 
     volumes = {os.path.join(PROJECT_ROOT, k): {'bind': v, 'mode': 'ro'} for k, v in volumes.items()}
@@ -113,7 +109,7 @@ def run_docker(client, network, image, name, module=None, classname=None,
 
     #links = {'nats-main': 'nats'}
 
-    return client.containers.run(image_tag, cmd, name=name, networks=networks,
+    return client.containers.run(image_tag, cmd, name=name, network=network,
                                  detach=detach, volumes=volumes, **kwargs)
 
 

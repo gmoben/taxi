@@ -2,3 +2,7 @@ __pycache__
 *.pyc
 *~
 \#*\#
+GPATH
+GTAGS
+GRTAGS
+.cache

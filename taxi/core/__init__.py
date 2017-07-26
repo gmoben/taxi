@@ -1,7 +1,7 @@
 import importlib
 
-from bus.core.base import NodeFactory, ManagerFactory, WorkerFactory
-from bus.util import get_engine, get_concrete_engine
+from taxi.core.base import NodeFactory, ManagerFactory, WorkerFactory
+from taxi.util import get_engine, get_concrete_engine
 
 
 ConcreteEngine = get_concrete_engine(get_engine())

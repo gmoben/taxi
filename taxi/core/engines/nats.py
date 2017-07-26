@@ -12,7 +12,7 @@ from collections import defaultdict
 import six
 import pexpect
 
-from bus.core.base import AbstractEngine
+from taxi.core.base import AbstractEngine
 
 log = logging.getLogger(__name__)
 

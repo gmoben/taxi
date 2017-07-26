@@ -12,8 +12,8 @@ from contextlib import contextmanager
 import six
 from six.moves.queue import Queue
 
-from bus.subjects import HA
-from bus.util import Wrappable, callable_fqn, threadsafe_defaultdict as defaultdict, memoize, subtopic
+from taxi.subjects import HA
+from taxi.util import Wrappable, callable_fqn, threadsafe_defaultdict as defaultdict, memoize, subtopic
 
 
 logging.basicConfig(stream=sys.stdout)
@@ -224,8 +224,8 @@ class CallbackManager(object):
 
     def start_dispatchers(self, subject):
         try:
-            start_dispatcher(subject, 'sync', 1)
-            start_dispatcher(subject, 'async', self.async_worker_count)
+            self.start_dispatcher(subject, 'sync', 1)
+            self.start_dispatcher(subject, 'async', self.async_worker_count)
         except:
             LOG.exception('Error starting dispatchers for %s', subject)
 
@@ -255,7 +255,7 @@ class CallbackManager(object):
         """
         if callback:
             LOG.debug('Adding callback %s to %s', callable_fqn(callback), pattern)
-            with self.locked_cache(pattern) as callbacks, _:
+            with self.locked_cache(pattern) as (callbacks, _):
                 if sync:
                     callbacks['sync'].append(callback)
                 else:
@@ -327,8 +327,7 @@ class AbstractClient(Wrappable):
     def __init__(self, *args, **kwargs):
         super(AbstractClient, self).__init__(self, *args, **kwargs)
         self.guid = str(uuid.uuid4())
-        self._callback_manager_lock = threading.Lock()
-        self._callback_managers = {}
+        self.callback_manager = CallbackManager(self)
         self.subscription_queue = []
 
         self.after('connect', self.flush_callbacks)
@@ -337,7 +336,6 @@ class AbstractClient(Wrappable):
         self.before('subscribe', self.add_callback)
         self.override('subscribe', self.queue_subscribe)
         self.after('unsubscribe', self.remove_callbacks)
-
 
     def flush_callbacks(self, *args, **kwargs):
         """Subscribe to any subjects with registered callbacks"""
@@ -449,14 +447,12 @@ class AbstractWorker(AbstractNode):
         self.subscribe(subtopic(HA.WORK, self.NAMESPACE, str(self.guid)), self.run)
         self.subscribe(subtopic(HA.STATUS, self.NAMESPACE), lambda msg: self.publish(msg['reply_to'], self.status))
 
-    @abstractproperty
     def status(self):
         return '{} LISTENING'.format(self.guid)
 
-    @abstractmethod
-    def run(self, msg):
+    def on_msg(self, msg):
         """Define this in your subclass"""
-        raise NotImplementedError
+        pass
 
 
 @memoize

@@ -193,13 +193,13 @@ def get_engine():
 
 
 def get_concrete_engine(engine_name):
-    module = importlib.import_module('.'.join(['bus.core.engines', engine_name]))
+    module = importlib.import_module('.'.join(['taxi.core.engines', engine_name]))
     return module.ConcreteEngine
 
 
 @contextmanager
 def server_context(engine_name):
-    module = importlib.import_module('.'.join(['bus.core.engines', engine_name]))
+    module = importlib.import_module('.'.join(['taxi.core.engines', engine_name]))
     with module.server() as process:
         yield process, module.ConcreteEngine
 

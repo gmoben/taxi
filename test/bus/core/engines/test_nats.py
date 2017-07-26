@@ -1,7 +1,7 @@
 import mock
 import pytest
 
-from bus.util import get_concrete_engine, server_context
+from taxi.util import get_concrete_engine, server_context
 
 
 @pytest.fixture('function')

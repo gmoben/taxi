@@ -18,3 +18,6 @@ docker_stop_%:
 docker_run_%: docker_stop_% docker_build_%
 	$(eval WORKER_NAME := $(shell echo $(PROJECT_NAME)-$* | head --bytes=-1))
 	docker run -dt --name=$(WORKER_NAME) fds/$(WORKER_NAME)
+
+nats:
+	docker run -d --name nats-main nats
