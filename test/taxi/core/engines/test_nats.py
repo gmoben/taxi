@@ -8,7 +8,7 @@ from taxi.util import get_concrete_engine, server_context
 def nats():
     with server_context('nats') as context:
         _, cls = context
-        yield cls(host='0.0.0.0')
+        yield cls(host='nats-main')
 
 
 def test_matches_subject(nats):

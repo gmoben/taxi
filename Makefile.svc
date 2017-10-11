@@ -1,0 +1,9 @@
+#-*- mode:makefile-gmake -*-
+PHONY += nats
+
+.PHONY: $(PHONY)
+
+nats:
+	-docker run -d --rm \
+		--name nats-main \
+		nats

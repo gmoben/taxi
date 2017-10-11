@@ -50,7 +50,22 @@ def test_subscribe(engine, engine_cls):
     e2.connect()
     e2.publish(channel, payload)
 
-    callback.assert_called_once()
+    time.sleep(1)
+
+    assert wait_for_callback(callback)
+
+
+def wait_for_callback(callback):
+    for i in range(5):
+        try:
+            callback.assert_called_once()
+            print("Recieved")
+            return True
+        except:
+            print("Not recieved")
+            time.sleep(1)
+    return False
+
 
 def test_unsubscribe(engine, engine_cls):
     channel = 'test'
@@ -70,15 +85,15 @@ def test_unsubscribe(engine, engine_cls):
     e2.publish(channel, payload)
     e2.close()
 
-    callback.assert_called_once()
+    assert wait_for_callback(callback)
 
     engine.unsubscribe(channel)
 
     time.sleep(0.5)
+
     e2.publish(channel, payload)
 
-    time.sleep(0.5)
-    callback.assert_called_once()
+    assert wait_for_callback(callback)
 
 
 def test_matches_subject(engine):

@@ -1,23 +1,38 @@
-PROJECT_NAME=taxi
+#-*- mode: makefile-gmake -*-
+-include ./Makefile.common
+-include ./Makefile.docker
+-include ./Makefile.svc
 
-docker_nocache_%:
-	docker build --no-cache -t fds/${PROJECT_NAME}-$*:latest -f docker/$* .
+PROJECT = taxi
+TAG = $(call mktag)
+IMAGE = ${ORG}/${PROJECT}:${TAG}
 
-docker_build_%:
-	docker build -t fds/${PROJECT_NAME}-$*:latest -f docker/$* .
+.PHONY: clean build run test
 
-docker_bash_%: docker_run_%
-	docker exec -it ${PROJECT_NAME}-$* /bin/bash
+clean:
+	find $(CURDIR) -name "__pycache__" | xargs sudo rm -rf
+	find $(CURDIR) -name ".cache"      | xargs sudo rm -rf
 
-docker_stop_%:
-	# Stop and remove the container
-	$(eval WORKER_NAME := $(shell echo $(PROJECT_NAME)-$* | head --bytes=-1))
-	docker stop $(WORKER_NAME) || true
-	docker rm $(WORKER_NAME) || true
+build:
+	echo $(shell echo $(BASE_DIR))
+	docker build -t ${PROJECT} -t ${IMAGE} .
 
-docker_run_%: docker_stop_% docker_build_%
-	$(eval WORKER_NAME := $(shell echo $(PROJECT_NAME)-$* | head --bytes=-1))
-	docker run -dt --name=$(WORKER_NAME) fds/$(WORKER_NAME)
+test: nats
+	docker run --rm \
+		--name ${PROJECT}-test \
+		--link nats-main \
+		-v ${PWD}/test:/test:ro \
+		-e LOG_LEVEL=debug \
+		--entrypoint=py.test \
+		${IMAGE} \
+		-vvv \
+		/test
 
-nats:
-	docker run -d --name nats-main nats
+bash:
+	docker run -it --rm \
+		--name ${PROJECT} \
+		--link nats-main \
+		-v ${PWD}/test:/test \
+		-e LOG_LEVEL=debug \
+		--entrypoint=sh \
+		${IMAGE}

@@ -17,16 +17,6 @@ from taxi.core.base import AbstractEngine
 log = logging.getLogger(__name__)
 
 
-@contextmanager
-def server():
-    """ Use a gnatsd client in a context """
-    process = pexpect.spawn('gnatsd')
-    #process.expect('[INF] Server is ready')
-    time.sleep(1)
-    yield process
-    process.kill(15)
-
-
 class ConcreteEngine(AbstractEngine):
     """ NATS client implementation based on http://nats.io/documentation/internals/nats-protocol/ """
 
@@ -88,7 +78,7 @@ class ConcreteEngine(AbstractEngine):
         options = options or {}
         self._write('CONNECT {}\r\n'.format(json.dumps(options)))
 
-    def connect(self, host='0.0.0.0', port=4222):
+    def connect(self, host='nats-main', port=4222):
         try:
             host = self.host or host
             port = self.port or port
