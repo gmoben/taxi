@@ -3,7 +3,7 @@ from contextlib import contextmanager
 import pytest
 
 from taxi.core.base import ClientFactory, NodeFactory, ManagerFactory, WorkerFactory
-from taxi.util import get_concrete_engine, server_context, list_modules, subtopic
+from taxi.util import get_concrete_engine, list_modules, subtopic
 
 
 ENGINE_MODULES = list_modules('taxi.core.engines')
@@ -11,8 +11,7 @@ ENGINE_MODULES = list_modules('taxi.core.engines')
 
 @contextmanager
 def _engine(name, *args, **kwargs):
-    with server_context(name):
-        yield get_concrete_engine(name)
+    yield get_concrete_engine(name)
 
 
 @pytest.fixture(scope='function',
@@ -24,7 +23,10 @@ def engine_cls(request):
 
 @pytest.fixture(scope='function')
 def engine(engine_cls):
-    yield engine_cls()
+    e = engine_cls()
+    e.connect()
+    yield e
+    e.disconnect()
 
 
 @pytest.fixture(scope='function')

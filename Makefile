@@ -18,10 +18,10 @@ build:
 	docker build -t ${PROJECT} -t ${IMAGE} .
 
 test: nats
-	docker run --rm \
+	docker run --rm -t \
 		--name ${PROJECT}-test \
 		--link nats-main \
-		-v ${PWD}/test:/test:ro \
+		-v ${PWD}/test:/test \
 		-e LOG_LEVEL=debug \
 		--entrypoint=py.test \
 		${IMAGE} \

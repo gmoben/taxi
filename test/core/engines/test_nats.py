@@ -1,14 +1,12 @@
 import mock
 import pytest
 
-from taxi.util import get_concrete_engine, server_context
+from taxi.util import get_concrete_engine
 
 
 @pytest.fixture('function')
 def nats():
-    with server_context('nats') as context:
-        _, cls = context
-        yield cls(host='nats-main')
+    return get_concrete_engine('nats')
 
 
 def test_matches_subject(nats):

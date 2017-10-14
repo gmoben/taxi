@@ -197,13 +197,6 @@ def get_concrete_engine(engine_name):
     return module.ConcreteEngine
 
 
-@contextmanager
-def server_context(engine_name):
-    module = importlib.import_module('.'.join(['taxi.core.engines', engine_name]))
-    with module.server() as process:
-        yield process, module.ConcreteEngine
-
-
 def list_modules(package_name):
     paths = importlib.import_module(package_name).__path__
     # Use a set because some may be both source and compiled.

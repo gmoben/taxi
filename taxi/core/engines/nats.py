@@ -15,6 +15,7 @@ import pexpect
 from taxi.core.base import AbstractEngine
 
 log = logging.getLogger(__name__)
+log.setLevel = logging.DEBUG
 
 
 class ConcreteEngine(AbstractEngine):
@@ -32,8 +33,8 @@ class ConcreteEngine(AbstractEngine):
     def __del__(self):
         """ Close the connection when the instance is garbage collected """
         telnet = getattr(self, '_telnet', None)
-        if telnet and hasattr(self, 'close'):
-            self.close()
+        if telnet and hasattr(self, 'disconnect'):
+            self.disconnect()
 
     def _get_sid(self, subject):
         """ Get a new SID starting from 0 for this connection"""
@@ -121,14 +122,14 @@ class ConcreteEngine(AbstractEngine):
                 yield msg
             except EOFError:
                 log.exception('No more messages')
-                self.close()
+                self.disconnect()
             except:
                 log.exception('Unhandled exception while listening')
-                self.close()
+                self.disconnect()
         log.info('Stopped listening')
         yield None
 
-    def close(self):
+    def disconnect(self):
         log.info('Closing connection')
         if self._telnet and self._telnet.sock:
             self._telnet.close()

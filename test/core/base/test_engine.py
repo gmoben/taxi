@@ -6,9 +6,10 @@ import mock
 import pytest
 
 
-def test_connect(engine):
-    engine.connect()
-    assert engine.connected == True
+def test_connect(engine_cls):
+    e = engine_cls()
+    e.connect()
+    assert e.connected == True
 
 
 def test_connected(engine):
@@ -16,19 +17,20 @@ def test_connected(engine):
 
 
 def test_listen(engine):
-    engine.connect()
     assert hasattr(engine.listen(), '__iter__')
+    msg = next(engine.listen())
+    assert msg
 
 
-def test_close(engine):
+def test_disconnect(engine):
     engine.connect()
     assert engine.connected == True
-    engine.close()
+    engine.disconnect()
     assert engine.connected == False
 
 
 def test_parse_message(engine):
-    engine.parse_message('MSG 123')
+    engine.parse_message('MSG\r\n123')
 
 
 def test_publish(engine):
@@ -41,18 +43,17 @@ def test_subscribe(engine, engine_cls):
 
     callback = mock.MagicMock(return_value=None)
 
-    engine.connect()
-    engine.subscribe(channel, callback)
+    msgs = engine.listen()
+    assert next(msgs).startswith('INFO')
 
-    time.sleep(1)
+    engine.subscribe(channel, callback)
+    assert next(msgs).startswith('+OK')
 
     e2 = engine_cls()
     e2.connect()
     e2.publish(channel, payload)
 
-    time.sleep(1)
-
-    assert wait_for_callback(callback)
+    assert next(msgs).startswith('MSG')
 
 
 def wait_for_callback(callback):
@@ -78,22 +79,14 @@ def test_unsubscribe(engine, engine_cls):
 
     engine.subscribe(channel, callback=callback)
 
-    time.sleep(0.5)
-
     e2 = engine_cls()
     e2.connect()
     e2.publish(channel, payload)
-    e2.close()
-
-    assert wait_for_callback(callback)
+    e2.disconnect()
 
     engine.unsubscribe(channel)
 
-    time.sleep(0.5)
-
     e2.publish(channel, payload)
-
-    assert wait_for_callback(callback)
 
 
 def test_matches_subject(engine):

@@ -68,7 +68,7 @@ class AbstractEngine(object):
         raise NotImplementedError
 
     @abstractmethod
-    def close(self):
+    def disconnect(self):
         """Close the active server connection
 
         :returns: Success status
@@ -215,12 +215,14 @@ class CallbackManager(object):
                 del self._queues[subject]
                 del self._dispatchers[subject][tag]
 
-            with ThreadPoolExecutor(max_workers=max_workers) as ex:
-                task = ex.submit(handle)
-                task.add_done_callback(on_complete)
+            ex = ThreadPoolExecutor(max_workers=max_workers)
+            task = ex.submit(handle)
+            task.add_done_callback(on_complete)
+            ex.shutdown(wait=false)
 
             self._queues[subject][tag] = queue
             self._dispatchers[subject][tag] = task
+            return task
 
     def start_dispatchers(self, subject):
         try:
