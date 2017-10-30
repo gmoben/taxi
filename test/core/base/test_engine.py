@@ -89,13 +89,13 @@ def test_unsubscribe(engine, engine_cls):
     e2.publish(channel, payload)
 
 
-def test_fuzzy_match(engine):
-    assert engine.fuzzy_match('1234', '1234')
-    assert not engine.fuzzy_match('1234', '1234.5678')
-    assert engine.fuzzy_match('*', '1234')
-    assert not engine.fuzzy_match('*.1234', '1234')
-    assert engine.fuzzy_match('1234.*', '1234.5678')
-    assert not engine.fuzzy_match('1234.*', '1234')
+def test_pattern_match(engine):
+    assert engine.pattern_match('1234', '1234')
+    assert not engine.pattern_match('1234', '1234.5678')
+    assert engine.pattern_match('*', '1234')
+    assert not engine.pattern_match('*.1234', '1234')
+    assert engine.pattern_match('1234.*', '1234.5678')
+    assert not engine.pattern_match('1234.*', '1234')
     # TODO: add more cases
 
 

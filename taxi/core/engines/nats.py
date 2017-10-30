@@ -171,7 +171,7 @@ class ConcreteEngine(AbstractEngine):
 
         return parsed_msg
 
-    def fuzzy_match(self, pattern, subject):
+    def pattern_match(self, pattern, subject):
         if pattern == subject:
             return True
 

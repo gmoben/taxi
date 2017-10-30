@@ -2,7 +2,7 @@ from contextlib import contextmanager
 
 import pytest
 
-from taxi.core.base import ClientFactory, NodeFactory, ManagerFactory, WorkerFactory
+from taxi.core.factory import ClientFactory, NodeFactory, ManagerFactory, WorkerFactory
 from taxi.util import get_concrete_engine, list_modules, subtopic
 
 
