@@ -1,9 +1,5 @@
-import concurrent.futures
-import logging
-import sys
 import threading
 import time
-import types
 import uuid
 from abc import ABCMeta, abstractmethod, abstractproperty
 from concurrent.futures import ThreadPoolExecutor
@@ -11,13 +7,20 @@ from contextlib import contextmanager
 
 import six
 from six.moves.queue import Queue
+import structlog
 
+from taxi.constants import DEFAULT_MAX_WORKERS
 from taxi.subjects import HA
-from taxi.util import Wrappable, callable_fqn, threadsafe_defaultdict as defaultdict, memoize, subtopic
+from taxi.util import (
+    Wrappable,
+    callable_fqn as fqn,
+    memoize,
+    subtopic,
+    threadsafe_defaultdict as defaultdict
+)
 
 
-logging.basicConfig(stream=sys.stdout)
-LOG = logging.getLogger(__name__)
+LOG = structlog.getLogger(__name__)
 
 
 @six.add_metaclass(ABCMeta)
@@ -130,7 +133,7 @@ class AbstractEngine(object):
         """
         raise NotImplementedError
 
-    def matches_subject(self, pattern, subject):
+    def fuzzy_match(self, pattern, subject):
         """Determine if a given subject pattern matches a string.
 
         Defaults to performing an equality comparison between the parameters.
@@ -141,7 +144,7 @@ class AbstractEngine(object):
         :rtype: boolean
 
         """
-        return subject == pattern
+        return pattern == subject
 
     def get_subtopic_pattern(self, subject, shallow):
         """Build a pattern for matching subtopics of a subject.
@@ -169,157 +172,252 @@ class AbstractEngine(object):
         self.subscribe(subject, callback)
 
 
-class CallbackManager(object):
+class Executor(object):
+    """
+    Utility for storing a list of functions and dispatching them
+    asynchronously.
 
-    def __init__(self, client):
-        """Initiailize a CallbackManager.
+    Maintains a ThreadPoolExecutor and function registry.  Calling
+    ``.dispatch()`` submits all registered functions in bulk with the
+    arguments supplied to ``.dispatch()``
+    """
 
-        :param AbstractClient client: Parent client
+    def __init__(self, pattern=None, label=None, max_workers=1):
+        """Initiailize an Executor.
+
+        :param string pattern: Optional channel pattern (used for logging)
+        :param string label: Optional label (used for logging)
+        :param int max_workers: ThreadPoolExecutor worker pool size
         """
-        self.client = client
+        self.pattern = pattern
+        self.label = label
+        self.max_workers = max_workers
+        self.executor = ThreadPoolExecutor(max_workers=self.max_workers)
+        self.registry = set()
+        self.registry_lock = threading.RLock()
 
-        self._cache_lock = threading.RLock()
-        self._callback_registry = defaultdict(lambda: defaultdict(list))
-        self._queues = defaultdict(lambda: defaultdict(dict))
-        self._dispatchers = defaultdict(dict)
+        self.log = LOG.bind(pattern=pattern, label=label, max_workers=max_workers)
 
-        self.async_worker_count = 40 # TODO: Decide how to set this dynamically
+    def submit(self, func, *args, **kwargs):
+        """Submit a task directly to the thread pool.
 
-    @contextmanager
-    def locked_cache(self, subject):
-        with self._cache_lock:
-            if not subject in self._queues:
-                self.start_dispatchers(subject)
-            yield self._callback_registry[subject], self._queues[subject]
-
-    def start_dispatcher(self, subject, tag, max_workers):
-        with self._cache_lock:
-            if tag in self._queues[subject]:
-                raise RuntimeError('Queue already exists for %s[%s]', subject, tag)
-
-            queue = Queue()
-
-            def handle():
-                while True:
-                    cb, msg = queue.get()
-                    cb(msg)
-
-            def on_complete(task):
-                exeception = task.exception()
-                if e:
-                    LOG.error(e)
-                elif task.cancelled():
-                    LOG.info('%s dispatcher cancelled', tag)
-                else:
-                    LOG.info('%s dispatcher stopped', tag)
-                del self._queues[subject]
-                del self._dispatchers[subject][tag]
-
-            ex = ThreadPoolExecutor(max_workers=max_workers)
-            task = ex.submit(handle)
-            task.add_done_callback(on_complete)
-            ex.shutdown(wait=false)
-
-            self._queues[subject][tag] = queue
-            self._dispatchers[subject][tag] = task
-            return task
-
-    def start_dispatchers(self, subject):
-        try:
-            self.start_dispatcher(subject, 'sync', 1)
-            self.start_dispatcher(subject, 'async', self.async_worker_count)
-        except:
-            LOG.exception('Error starting dispatchers for %s', subject)
-
-    def dispatch_callbacks(self, msg):
-        """Dispatch callbacks for matching subject keys.
-
-        :param dict msg: Parsed message
-
+        :param func func: function to submit
+        :param list args: function args
+        :param dict kwargs: function kwargs
         """
-        subject = msg['subject']
-
-        with self._cache_lock:
-            for pattern in self._callback_registry:
-                if self.client.matches_subject(pattern, subject):
-                    with self.locked_cache(pattern) as (callbacks, queues):
-                        for tag in ['sync', 'async']:
-                            for cb in callbacks[tag]:
-                                queues[tag].put_nowait(cb, msg)
-
-    def add_callback(self, pattern, callback, sync):
-        """Add a callback indexed by a subject pattern.
-
-        :param string pattern: key of callback index
-        :param func callback: Callback to execute
-        :param boolean sync: If set, enable callback queuing
-
-        """
-        if callback:
-            LOG.debug('Adding callback %s to %s', callable_fqn(callback), pattern)
-            with self.locked_cache(pattern) as (callbacks, _):
-                if sync:
-                    callbacks['sync'].append(callback)
-                else:
-                    callback['async'].append(callback)
-        else:
-            LOG.debug('No callback passed for pattern %s', pattern)
-
-    def remove_callback(self, pattern, callback, tag=None, literal=False):
-        """Remove a callbacks matching the pattern.
-
-        :param string pattern: Pattern to search against for matching callbacks
-        :param func callback: Callback to remove
-        :param tag: type of callback (e.g. sync/async)
-        :param boolean literal: If set, skip matching
-        :returns: Removal success or failure
-        :rtype: boolean
-
-        """
-        success = False
-        with self._cache_lock:
-            if literal:
-                try:
-                    self._callback_registry[pattern][tag].remove(callback)
-                    success = True
-                except ValueError:
-                    pass
+        def on_complete(task, name, args, kwargs):
+            """ Log useful info about task status """
+            log = self.log.bind(fqn=name, args=args, kwargs=kwargs)
+            e = task.exception()
+            if e:
+                log.exception(e)
+            elif task.cancelled():
+                log.info('Submitted task cancelled')
             else:
-                for subject in self._callback_registry:
-                    if self.client.matches_subject(subject, pattern):
-                        callbacks = self._callback_registry[subject]
-                        if tag and tag in callbacks:
-                            try:
-                                callbacks[tag].remove(callback)
-                                success = True
-                            except ValueError:
-                                pass
-                        elif not tag or not callbacks:
-                            del self._callback_registry[subject]
-                            success = True
+                log.debug('Submitted task completed')
 
-        if not success:
-            LOG.error('No callback %s found matching pattern %s [literal=%s]',
-                      callable_fqn(callback), pattern, literal)
-        return success
+        task = self.executor.submit(func, *args, **kwargs)
+        task.add_done_callback(
+            lambda task, n=fqn(func), a=args, k=kwargs: on_complete(task, n, a, k))
+        self.log.debug('Submitted task', fqn=fqn(func), task=task)
+        return task
 
-    def remove_callbacks(self, pattern, literal=False):
-        """Remove all callbacks matching a subject pattern.
+    def shutdown(self, wait=True):
+        """Shutdown the ThreadPoolExecutor.
 
-        :param string pattern: The subject to remove callbacks from
-
+        :param bool wait: Block until all tasks are complete
         """
-        if literal:
-            matches = lambda x, y: x == y
-        else:
-            matches = self.client.matches_subject
+        self.log.info('Executor shutting down', wait=wait)
+        self.executor.shutdown(wait=wait)
+        self.executor = ThreadPoolExecutor(max_workers=self.max_workers)
 
-        with self._cache_lock:
-            for key in self._callback_registry:
-                if matches(pattern, key):
-                    callback_names = map(callable_fqn, self._callback_registry[key])
-                    LOG.debug('Removing all callbacks for %s: %s', key, callback_names)
-                    del self._callback_registry[key]
+    def dispatch(self, *args, **kwargs):
+        """Dispatch all registered callbacks."""
+        with self.registry_lock:
+            for cb in self.registry:
+                self.submit(cb, *args, **kwargs)
+
+    def register(self, callback):
+        """Add a callback to the registry.
+
+        :param func callback: Callback to register
+        """
+        with self.registry_lock:
+            self.log.debug('Registering callback', callback=fqn(callback))
+            self.registry.add(callback)
+            return True
+
+    def unregister(self, callback):
+        """Remove a callback from registry.
+
+        :param func callback: Callback to remove
+        :returns: Success or failure
+        :rtype: boolean
+        """
+        log = self.log.bind(fqn=fqn(callback))
+        try:
+            with self.registry_lock:
+                self.registry.remove(callback)
+            log.debug('Callback removed from registry')
+            return True
+        except KeyError:
+            log.warning('Callback not registered')
+            return False
+
+    def clear_registry(self):
+        """Clear all callbacks from the registry."""
+        with self.registry_lock:
+            self.registry = set()
+            self.log.debug('All callbacks removed')
+
+
+class Dispatcher(object):
+    """
+    Maintains groups of Executors keyed by subscription pattern and
+    label.
+
+    Some functions have ``sync`` flags.
+    If True:  label = 'sync' && max_workers = 1
+    If False: label = 'sync' && max_workers = taxi.constants.DEFAULT_MAX_WORKERS
+    If None: specify your own label and max_workers where appropriate
+    """
+    def __init__(self):
+        self.log = LOG.bind()
+        self.executors = defaultdict(dict)
+        self._lock = threading.RLock()
+
+    @property
+    def patterns(self):
+        with self._lock:
+            return list(self.executors.keys())
+
+    @property
+    def labels(self):
+        """Get a map of patterns to lists of executor labels."""
+        with self._lock:
+            return {k: list(self.executors[k].keys()) for k in self.executors}
+
+    def has_executor(self, pattern, label=None):
+        """Check if executors already exist.
+
+        :param string pattern: Subscription pattern
+        :param string label: If specified, look for specific label
+        """
+        with self._lock:
+            if pattern in self.executors:
+                ex = self.executors[pattern]
+                return True if (label is None and len(ex) > 0) else label in ex
+            return False
+
+    def init_executor(self, pattern, label, max_workers):
+        """Instantiate a new executor and add it to the self.executors cache.
+
+        :param string pattern: Pattern to match against incoming messages
+        :param string label: Unique executor label (e.g. sync/async)
+        :param int max_workers: Executor thread pool size
+        """
+        with self._lock:
+            log = self.log.bind(pattern=pattern, label=label)
+            if self.has_executor(pattern, label):
+                log.warning('Executor already exists')
+                return
+
+            log.debug('Registering executor', max_workers=max_workers)
+            self.executors[pattern][label] = Executor(pattern, label, max_workers)
+
+    def get_executor(self, pattern, label):
+        if self.has_executor(pattern, label):
+            return self.executors[pattern][label]
+
+    def remove_executor(self, pattern, label, wait=True):
+        """Shutdown and remove a registered executor.
+
+        :param string pattern: Pattern to match against incoming messages
+        :param string label: Unique executor label (e.g. sync/async)
+        :param bool wait: Block until all tasks are complete
+        """
+        log = self.log.bind(pattern=pattern, label=label, wait=wait)
+        with self._lock:
+            if self.has_executor(pattern, label):
+                ex = self.get_executor(pattern, label)
+                ex.shutdown(wait)
+                log.info('Executor shutdown')
+
+                del self.executors[pattern][label]
+                if len(self.executors[pattern]) == 0:
+                    log.debug('Removing executor key')
+                    del self.executors[pattern]
+                else:
+                    LOG.warning('Executor not registered')
+
+    def register(self, pattern, callback, sync=False, label=None, max_workers=None):
+        """Register a callback.
+
+        :param string pattern: Exactly matching pattern string
+        :param string label: If specified, only execute callbacks with this label
+        """
+        label = label or ('sync' if sync is True else ('async' if sync is False else label))
+        max_workers = 1 if sync else (DEFAULT_MAX_WORKERS if max_workers is None else max_workers)
+        log = self.log.bind(pattern=pattern, fqn=fqn(callback),
+                            sync=sync, label=label, max_workers=max_workers)
+
+        if label is None:
+            log.error('Missing sync or label argument')
+            return False
+
+        if not self.has_executor(pattern, label):
+            self.init_executor(pattern, label, max_workers)
+
+        ex = self.get_executor(pattern, label)
+        ex.register(callback)
+
+    def unregister(self, pattern, callback, sync=None, label=None):
+        """Remove a callback.
+
+        :param string pattern: Exactly matching pattern string
+        :param func callback: Callback to remove
+        :param bool sync: True sets label to 'sync', False to 'async', and None to `label`
+        :param string label: If specified, only remove callbacks with this label
+        """
+        label = 'sync' if sync is True else ('async' if sync is False else label)
+        labels = self.labels[pattern] if label is None else [label]
+        log = self.log.bind(pattern=pattern, fqn=fqn(callback), sync=sync, label=label)
+
+        if not self.has_executor(pattern, label):
+            log.warning('No executors found', executors=self.executors.keys())
+            return False
+
+        for x in labels:
+            ex = self.get_executor(pattern, x)
+            ex.unregister(callback)
+
+    def unregister_all(self, pattern, sync=None, label=None, remove_executors=False, wait=True):
+        log = self.log.bind(pattern=pattern, sync=sync, label=label)
+        with self._lock:
+            if not self.has_executor(pattern):
+                log.warning('No executors found', executors=self.executors.keys())
+                return False
+            for x in self.labels[pattern]:
+                if remove_executors:
+                    self.remove_executor(pattern, x, wait)
+                else:
+                    self.executors[pattern][x].clear_registry()
+
+    def dispatch(self, pattern, *args, label=None, **kwargs):
+        """Dispatch all callbacks registered under `pattern`.
+
+        :param string pattern: Exactly matching pattern string
+        :param string label: If specified, only execute callbacks with this label
+        """
+        log = self.log.bind(pattern=pattern, label=label, args=args, kwargs=kwargs)
+        if not self.has_executor(pattern, label):
+            log.error('Pattern has no registered callbacks')
+            return
+        with self._lock:
+            for ex_label, executor in self.executors[pattern].items():
+                if label is None or label == ex_label:
+                    executor.dispatch(*args, **kwargs)
+
 
 
 @six.add_metaclass(ABCMeta)
@@ -329,43 +427,61 @@ class AbstractClient(Wrappable):
     def __init__(self, *args, **kwargs):
         super(AbstractClient, self).__init__(self, *args, **kwargs)
         self.guid = str(uuid.uuid4())
-        self.callback_manager = CallbackManager(self)
+        self.log = LOG.bind(guid=self.guid)
+
+        self.dispatcher = Dispatcher()
         self.subscription_queue = []
 
         self.after('connect', self.flush_callbacks)
-        self.override('listen', self.run_master_dispatch)
-        self.after('parse_message', self.dispatch_callbacks)
-        self.before('subscribe', self.add_callback)
+        self.override('listen', self.consume)
+        self.after('parse_message', self.handle_message)
+        self.before('subscribe', self.register_callback)
         self.override('subscribe', self.queue_subscribe)
-        self.after('unsubscribe', self.remove_callbacks)
+        self.after('unsubscribe', self.unregister_callbacks)
 
-    def flush_callbacks(self, *args, **kwargs):
-        """Subscribe to any subjects with registered callbacks"""
+    def flush_subscriptions(self, *args, **kwargs):
+        """Subscribe to any subjects with registered callbacks.
+
+        Executes immediately after ``Engine.connect``
+        """
+        log = self.log.bind(args=args, kwargs=kwargs)
+        log.debug('Flushing queued subscriptions',
+                  queue_depth=len(self.subscription_queue),
+                  queue=self.subscription_queue)
+
         for q_args, q_kwargs in list(self.subscription_queue):
             self.subscribe(*q_args, **q_kwargs)
         self.subscription_queue = []
 
-    def run_master_dispatch(self, imethod, *args, **kwargs):
-        """Run a blocking dispatch thread"""
+    def consume(self, imethod, *args, **kwargs):
+        """Run a blocking consumer thread"""
+        log = self.log.bind(imethod=imethod, args=args, kwargs=kwargs)
         try:
             # Use a ThreadPoolExecutor to help catch exceptions
             with ThreadPoolExecutor(max_workers=1) as ex:
                 ex.map(self.parse_message, imethod())
-        except Exception as e:
-            LOG.exception(e)
+        except:
+            log.exception('Unhandled error while parsing messages')
 
-    def dispatch_callbacks(self, msg, *args, **kwargs):
-        self.callback_manager.dispatch_callbacks(msg)
+    def handle_message(self, msg, *args, **kwargs):
+        """Dispatch callbacks for matching dispatch patterns.
 
-    def add_callback(self, subject, callback, *args, **kwargs):
-        """Add callback to callback manager"""
-        sync = kwargs.pop('sync', False)
-        self.callback_manager.add_callback(subject, callback, sync)
+        :param dict msg: Parsed message returned from ``Engine.parse_message``
+        """
+        subject = msg['subject']
+        log = self.log.bind(msg=msg, args=args, kwargs=kwargs)
+        for pattern in self.dispatcher.patterns:
+            if self.fuzzy_match(pattern, subject):
+                log.debug('Matching pattern found', pattern=pattern)
+                self.dispatcher.dispatch(pattern, msg, *args, **kwargs)
 
-    def remove_callbacks(self, _, subject, *args, **kwargs):
-        self.callback_manager.remove_callbacks(subject)
+    def register_callback(self, pattern, callback, *args, **kwargs):
+        self.dispatcher.register(pattern, callback)
 
-    def queue_subscribe(self, imethod, *args, **kwargs):
+    def unregister_callback(self, _, subject, *args, **kwargs):
+        self.callback_manager.unregister_all(subject, remove_executors=True, wait=False)
+
+    def queue_subscription(self, imethod, *args, **kwargs):
         """Queue a subscription if not currently connected"""
         if self.connected:
             imethod(*args, **kwargs)

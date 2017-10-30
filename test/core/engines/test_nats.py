@@ -9,7 +9,7 @@ def nats():
     return get_concrete_engine('nats')
 
 
-def test_matches_subject(nats):
+def test_fuzzy_match(nats):
     pass
 
 

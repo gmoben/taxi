@@ -1,6 +1,5 @@
 #-*- mode: makefile-gmake -*-
 -include ./Makefile.common
--include ./Makefile.docker
 -include ./Makefile.svc
 
 PROJECT = taxi
