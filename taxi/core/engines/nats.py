@@ -1,25 +1,20 @@
-import base64
 import fnmatch
 import json
 import logging
 import socket
 import telnetlib
 import threading
-import time
-from contextlib import contextmanager
-from collections import defaultdict
 
 import six
-import pexpect
 
-from taxi.core.base import AbstractEngine
+from taxi.core.abstract import AbstractEngine
 
 log = logging.getLogger(__name__)
 log.setLevel = logging.DEBUG
 
 
 class ConcreteEngine(AbstractEngine):
-    """ NATS client implementation based on http://nats.io/documentation/internals/nats-protocol/ """
+    """NATS client implementation based on http://nats.io/documentation/internals/nats-protocol/"""
 
     def __init__(self, *args, **kwargs):
         self._telnet = None
@@ -171,7 +166,8 @@ class ConcreteEngine(AbstractEngine):
 
         return parsed_msg
 
-    def pattern_match(self, pattern, subject):
+    @staticmethod
+    def fuzzy_match(pattern, subject):
         if pattern == subject:
             return True
 

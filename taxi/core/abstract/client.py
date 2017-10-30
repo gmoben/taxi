@@ -1,0 +1,92 @@
+from abc import ABCMeta
+from concurrent.futures import ThreadPoolExecutor
+import time
+import uuid
+
+import six
+import structlog
+
+from taxi.core.callback import Dispatcher
+from taxi.util import Wrappable, subtopic
+
+
+LOG = structlog.getLogger(__name__)
+
+
+@six.add_metaclass(ABCMeta)
+class AbstractClient(Wrappable):
+    """Mixin for AbstractEngine with callback management and convenience methods"""
+
+    def __init__(self, *args, **kwargs):
+        super(AbstractClient, self).__init__(self, *args, **kwargs)
+        self.guid = str(uuid.uuid4())
+        self.log = LOG.bind(guid=self.guid)
+
+        self.dispatcher = Dispatcher()
+        self.subscription_queue = []
+
+        self.after('connect', self.flush_callbacks)
+        self.override('listen', self.consume)
+        self.after('parse_message', self.handle_message)
+        self.before('subscribe', self.register_callback)
+        self.override('subscribe', self.queue_subscribe)
+        self.after('unsubscribe', self.unregister_callbacks)
+
+    def flush_subscriptions(self, *args, **kwargs):
+        """Subscribe to any subjects with registered callbacks.
+
+        Executes immediately after ``Engine.connect``
+        """
+        log = self.log.bind(args=args, kwargs=kwargs)
+        log.debug('Flushing queued subscriptions',
+                  queue_depth=len(self.subscription_queue),
+                  queue=self.subscription_queue)
+
+        for q_args, q_kwargs in list(self.subscription_queue):
+            self.subscribe(*q_args, **q_kwargs)
+        self.subscription_queue = []
+
+    def consume(self, imethod, *args, **kwargs):
+        """Run a blocking consumer thread"""
+        log = self.log.bind(imethod=imethod, args=args, kwargs=kwargs)
+        try:
+            # Use a ThreadPoolExecutor to help catch exceptions
+            with ThreadPoolExecutor(max_workers=1) as ex:
+                ex.map(self.parse_message, imethod())
+        except:
+            log.exception('Unhandled error while parsing messages')
+
+    def handle_message(self, msg, *args, **kwargs):
+        """Dispatch callbacks for matching dispatch patterns.
+
+        :param dict msg: Parsed message returned from ``Engine.parse_message``
+        """
+        subject = msg['subject']
+        log = self.log.bind(msg=msg, args=args, kwargs=kwargs)
+        for pattern in self.dispatcher.patterns:
+            if self.pattern_match(pattern, subject):
+                log.debug('Matching pattern found', pattern=pattern)
+                self.dispatcher.dispatch(pattern, msg, *args, **kwargs)
+
+    def register_callback(self, pattern, callback, *_, **__):
+        self.dispatcher.register(pattern, callback)
+
+    def unregister_callback(self, _, subject, *__, **___):
+        self.callback_manager.unregister_all(subject, remove_executors=True, wait=False)
+
+    def queue_subscription(self, imethod, *args, **kwargs):
+        """Queue a subscription if not currently connected"""
+        if self.connected:
+            imethod(*args, **kwargs)
+        else:
+            self.subscription_queue.append((args, kwargs))
+
+    def request(self, subject, payload, callback, timeout):
+
+        reply_to = subtopic('INBOX', self.guid)
+
+        self.subscribe(reply_to, callback)
+        self.publish(subject, payload, reply_to=reply_to)
+
+        time.sleep(timeout)
+        self.unsubscribe(reply_to)
