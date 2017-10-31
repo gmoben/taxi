@@ -10,16 +10,16 @@ def nats():
 
 
 def test_pattern_match(nats):
-    pass
+    pytest.skip()
 
 
 def test_get_subtopic_pattern(nats):
-    pass
+    pytest.skip()
 
 
 def test_ping(nats):
-    pass
+    pytest.skip()
 
 
 def test_pong(nats):
-    pass
+    pytest.skip()

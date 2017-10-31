@@ -1,41 +1,43 @@
 from taxi.core.callback import Dispatcher
 
+import pytest
+
 
 def test_patterns():
-    pass
+    pytest.skip()
 
 
 def test_labels():
-    pass
+    pytest.skip()
 
 
 def test_has_executor():
-    pass
+    pytest.skip()
 
 
 def test_init_executor():
-    pass
+    pytest.skip()
 
 
 def test_get_executor():
-    pass
+    pytest.skip()
 
 
 def test_remove_executor():
-    pass
+    pytest.skip()
 
 
 def test_register():
-    pass
+    pytest.skip()
 
 
 def test_unregister():
-    pass
+    pytest.skip()
 
 
 def test_unregister_all():
-    pass
+    pytest.skip()
 
 
 def test_dispatch():
-    pass
+    pytest.skip()

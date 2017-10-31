@@ -3,8 +3,8 @@ import pytest
 
 
 def test_status(worker):
-    pass
+    pytest.skip()
 
 
 def test_run(worker):
-    pass
+    pytest.skip()

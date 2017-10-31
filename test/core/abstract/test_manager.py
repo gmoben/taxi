@@ -3,8 +3,8 @@ import pytest
 
 
 def test_poll_workers(manager):
-    pass
+    pytest.skip()
 
 
 def test_publish_work(manager):
-    pass
+    pytest.skip()

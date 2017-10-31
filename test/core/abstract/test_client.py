@@ -3,44 +3,44 @@ import pytest
 
 
 def test_locked_cache(client):
-    pass
+    pytest.skip()
 
 
 def test_run_master_dispatch(client):
-    pass
+    pytest.skip()
 
 
 def test_start_dispatcher(client):
-    pass
+    pytest.skip()
 
 
 def test_start_dispatchers(client):
-    pass
+    pytest.skip()
 
 
 def test_flush_callbacks(client):
-    pass
+    pytest.skip()
 
 
 def test_dispatch_callbacks(client):
-    pass
+    pytest.skip()
 
 
 def test_add_callback(client):
-    pass
+    pytest.skip()
 
 
 def test_remove_callback(client):
-    pass
+    pytest.skip()
 
 
 def test_remove_callbacks(client):
-    pass
+    pytest.skip()
 
 
 def test_queue_subscribe(client):
-    pass
+    pytest.skip()
 
 
 def test_request(client):
-    pass
+    pytest.skip()

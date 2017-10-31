@@ -13,7 +13,7 @@ def test_connect(engine_cls):
 
 
 def test_connected(engine):
-    pass
+    pytest.skip()
 
 
 def test_listen(engine):
@@ -57,7 +57,7 @@ def test_subscribe(engine, engine_cls):
 
 
 def wait_for_callback(callback):
-    for i in range(5):
+    for _ in range(5):
         try:
             callback.assert_called_once()
             print("Recieved")
@@ -73,7 +73,7 @@ def test_unsubscribe(engine, engine_cls):
     payload = 'payload'
 
     with pytest.raises(Exception):
-         client.unsubscribe(channel)
+        engine.unsubscribe(channel)
 
     callback = mock.MagicMock(return_value=None)
 
@@ -100,8 +100,8 @@ def test_pattern_match(engine):
 
 
 def test_get_subtopic_pattern(engine):
-    pass
+    pytest.skip()
 
 
 def test_subscribe_subtopics(engine):
-    pass
+    pytest.skip()
