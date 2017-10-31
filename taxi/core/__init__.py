@@ -1,6 +1,6 @@
 import importlib
 
-from taxi.core.base import NodeFactory, ManagerFactory, WorkerFactory
+from taxi.core.factory import NodeFactory, ManagerFactory, WorkerFactory
 from taxi.util import get_engine, get_concrete_engine
 
 

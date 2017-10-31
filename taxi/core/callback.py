@@ -22,7 +22,7 @@ class Executor(object):
     arguments supplied to ``.dispatch()``
     """
 
-    def __init__(self, pattern=None, label=None, max_workers=1):
+    def __init__(self, max_workers, pattern=None, label=None):
         """Initiailize an Executor.
 
         :param string pattern: Optional channel pattern (used for logging)
@@ -32,11 +32,14 @@ class Executor(object):
         self.pattern = pattern
         self.label = label
         self.max_workers = max_workers
-        self.executor = ThreadPoolExecutor(max_workers=self.max_workers)
+        self.pool = ThreadPoolExecutor(max_workers=self.max_workers)
         self.registry = set()
         self.registry_lock = threading.RLock()
 
         self.log = LOG.bind(pattern=pattern, label=label, max_workers=max_workers)
+
+    def __del__(self):
+        self.pool.shutdown(wait=False)
 
     def submit(self, func, *args, **kwargs):
         """Submit a task directly to the thread pool.
@@ -56,7 +59,7 @@ class Executor(object):
             else:
                 log.debug('Submitted task completed')
 
-        task = self.executor.submit(func, *args, **kwargs)
+        task = self.pool.submit(func, *args, **kwargs)
         task.add_done_callback(
             lambda task, n=fqn(func), a=args, k=kwargs: on_complete(task, n, a, k))
         self.log.debug('Submitted task', fqn=fqn(func), task=task)
@@ -68,14 +71,8 @@ class Executor(object):
         :param bool wait: Block until all tasks are complete
         """
         self.log.info('Executor shutting down', wait=wait)
-        self.executor.shutdown(wait=wait)
-        self.executor = ThreadPoolExecutor(max_workers=self.max_workers)
-
-    def dispatch(self, *args, **kwargs):
-        """Dispatch all registered callbacks."""
-        with self.registry_lock:
-            for cb in self.registry:
-                self.submit(cb, *args, **kwargs)
+        self.pool.shutdown(wait=wait)
+        self.pool = ThreadPoolExecutor(max_workers=self.max_workers)
 
     def register(self, callback):
         """Add a callback to the registry.
@@ -107,8 +104,14 @@ class Executor(object):
     def clear_registry(self):
         """Clear all callbacks from the registry."""
         with self.registry_lock:
-            self.registry = set()
+            self.registry.clear()
             self.log.debug('All callbacks removed')
+
+    def dispatch(self, *args, **kwargs):
+        """Dispatch all registered callbacks."""
+        with self.registry_lock:
+            tasks = [self.submit(cb, *args, **kwargs) for cb in self.registry]
+            return tasks
 
 
 class Dispatcher(object):

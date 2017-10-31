@@ -1,3 +1,4 @@
+from taxi.core.callback import Dispatcher
 
 
 def test_patterns():
