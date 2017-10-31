@@ -4,7 +4,6 @@ import imp
 import importlib
 import os
 from collections import defaultdict, deque, namedtuple
-from contextlib import contextmanager
 
 import six
 import yaml
@@ -46,12 +45,12 @@ class threadsafe_defaultdict(defaultdict):
 
     def __getitem__(self, key):
         if key in self:
-            return super(self, defaultdict).__getitem__(key)
+            return super().__getitem__(key)
         else:
             with self._lock:
                 if key in self:
                     # Value for key was created whilst this thread was waiting for the lock
-                    return super(self, defaultdict).__getitem__(key)
+                    return super().__getitem__(key)
                 else:
                     return self.__missing__(key)
 

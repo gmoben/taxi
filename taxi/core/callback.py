@@ -3,7 +3,6 @@ import threading
 
 import structlog
 
-from taxi.constants import DEFAULT_MAX_WORKERS
 from taxi.util import (
     callable_fqn as fqn,
     threadsafe_defaultdict as defaultdict
@@ -140,18 +139,6 @@ class Dispatcher(object):
         with self._lock:
             return {k: list(self.executors[k].keys()) for k in self.executors}
 
-    def has_executor(self, pattern, label=None):
-        """Check if executors already exist.
-
-        :param string pattern: Subscription pattern
-        :param string label: If specified, look for specific label
-        """
-        with self._lock:
-            if pattern in self.executors:
-                ex = self.executors[pattern]
-                return True if (label is None and len(ex) > 0) else label in ex
-            return False
-
     def init_executor(self, pattern, label, max_workers):
         """Instantiate a new executor and add it to the self.executors cache.
 
@@ -166,11 +153,11 @@ class Dispatcher(object):
                 return
 
             log.debug('Registering executor', max_workers=max_workers)
-            self.executors[pattern][label] = Executor(pattern, label, max_workers)
-
-    def get_executor(self, pattern, label):
-        if self.has_executor(pattern, label):
-            return self.executors[pattern][label]
+            ex = Executor(max_workers=max_workers,
+                          pattern=pattern,
+                          label=label)
+            self.executors[pattern][label] = ex
+            return ex
 
     def remove_executor(self, pattern, label, wait=True):
         """Shutdown and remove a registered executor.
@@ -181,17 +168,39 @@ class Dispatcher(object):
         """
         log = self.log.bind(pattern=pattern, label=label, wait=wait)
         with self._lock:
-            if self.has_executor(pattern, label):
-                ex = self.get_executor(pattern, label)
-                ex.shutdown(wait)
-                log.info('Executor shutdown')
+            if not self.has_executor(pattern, label):
+                log.warning('Executor not registered')
+                return False
 
-                del self.executors[pattern][label]
-                if len(self.executors[pattern]) == 0:
-                    log.debug('Removing executor key')
-                    del self.executors[pattern]
-                else:
-                    LOG.warning('Executor not registered')
+            ex = self.executors[pattern][label]
+            ex.shutdown(wait)
+            log.info('Executor shutdown')
+
+            del self.executors[pattern][label]
+            if len(self.executors[pattern]) == 0:
+                log.debug('Removing executor key')
+                del self.executors[pattern]
+            return True
+
+    def has_executor(self, pattern, label=None):
+        """Check if executors already exist.
+
+        :param string pattern: Subscription pattern
+        :param string label: If specified, look for specific label
+        """
+        with self._lock:
+            if pattern in self.executors:
+                ex = self.executors[pattern]
+                return True if (label is None and len(ex) > 0) else label in ex
+            return False
+
+    def is_registered(self, pattern, callback, label=None):
+        if self.has_executor(pattern, label):
+            if label is None:
+                return any(callback in ex.registry
+                           for k, ex in self.executors[pattern].items())
+            return callback in self.executors[pattern][label].registry
+        return False
 
     def register(self, pattern, callback, sync=False, label=None, max_workers=None):
         """Register a callback.
@@ -200,7 +209,7 @@ class Dispatcher(object):
         :param string label: If specified, only execute callbacks with this label
         """
         label = label or ('sync' if sync is True else ('async' if sync is False else label))
-        max_workers = 1 if sync else (DEFAULT_MAX_WORKERS if max_workers is None else max_workers)
+        max_workers = 1 if sync else max_workers
         log = self.log.bind(pattern=pattern, fqn=fqn(callback),
                             sync=sync, label=label, max_workers=max_workers)
 
@@ -209,10 +218,10 @@ class Dispatcher(object):
             return False
 
         if not self.has_executor(pattern, label):
-            self.init_executor(pattern, label, max_workers)
+            ex = self.init_executor(pattern, label, max_workers)
 
-        ex = self.get_executor(pattern, label)
-        ex.register(callback)
+        ex = self.executors[pattern][label]
+        return ex.register(callback)
 
     def unregister(self, pattern, callback, sync=None, label=None):
         """Remove a callback.
@@ -230,9 +239,11 @@ class Dispatcher(object):
             log.warning('No executors found', executors=self.executors.keys())
             return False
 
+        results = []
         for x in labels:
-            ex = self.get_executor(pattern, x)
-            ex.unregister(callback)
+            ex = self.executors[pattern][x]
+            results += [ex.unregister(callback)]
+        return any(results)
 
     def unregister_all(self, pattern, sync=None, label=None, remove_executors=False, wait=True):
         log = self.log.bind(pattern=pattern, sync=sync, label=label)
@@ -246,7 +257,7 @@ class Dispatcher(object):
                 else:
                     self.executors[pattern][x].clear_registry()
 
-    def dispatch(self, pattern, *args, label=None, **kwargs):
+    def dispatch(self, pattern, label, *args, **kwargs):
         """Dispatch all callbacks registered under `pattern`.
 
         :param string pattern: Exactly matching pattern string
@@ -257,6 +268,14 @@ class Dispatcher(object):
             log.error('Pattern has no registered callbacks')
             return
         with self._lock:
-            for ex_label, executor in self.executors[pattern].items():
-                if label is None or label == ex_label:
-                    executor.dispatch(*args, **kwargs)
+            tasks = []
+            if label is None:
+                executors = self.executors[pattern].values()
+            else:
+                executors = [self.executors[pattern][label]]
+            for executor in executors:
+                tasks += executor.dispatch(*args, **kwargs)
+            return tasks
+
+    def dispatch_all(self, pattern, *args, **kwargs):
+        return self.dispatch(pattern, None, *args, **kwargs)
