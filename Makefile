@@ -30,6 +30,7 @@ test: nats
 		${IMAGE} \
 		-p no:cacheprovider \
 		-vvv \
+		--cov ${PROJECT} \
 		/test
 
 bash:

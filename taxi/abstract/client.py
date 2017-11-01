@@ -30,7 +30,7 @@ class AbstractClient(Wrappable):
         self.after('parse_message', self.handle_message)
         self.before('subscribe', self.register_callback)
         self.override('subscribe', self.queue_subscribe)
-        self.after('unsubscribe', self.unregister_all_callbacks)
+        self.after('unsubscribe', self.unregister_callbacks)
 
     def flush_subscriptions(self, *args, **kwargs):
         """Subscribe to any subjects with registered callbacks.
@@ -73,18 +73,16 @@ class AbstractClient(Wrappable):
         max_workers = 1 if sync else max_workers
         return self.dispatcher.register(pattern, callback, label, max_workers)
 
-    def unregister_all_callbacks(self, _, pattern, *args, **kwargs):
+    def unregister_callbacks(self, _, pattern, *args, **kwargs):
         return self.callback_manager.unregister_all(pattern, remove_executors=True, wait=False)
 
     def queue_subscription(self, imethod, *args, **kwargs):
         """Queue a subscription if not currently connected"""
         if self.connected:
-            imethod(*args, **kwargs)
-        else:
-            self.subscription_queue.append((args, kwargs))
+            return imethod(*args, **kwargs)
+        return self.subscription_queue.append((args, kwargs))
 
     def request(self, subject, payload, callback, timeout):
-
         reply_to = subtopic('INBOX', self.guid)
 
         self.subscribe(reply_to, callback)
