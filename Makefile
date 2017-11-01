@@ -20,8 +20,9 @@ test: nats
 	docker run --rm -t \
 		--name ${PROJECT}-test \
 		--link nats-main \
-		-v ${PWD}/test:/test \
+		-v ${PWD}/test:/test:ro \
 		-e LOG_LEVEL=debug \
+		-e TAXI_CONFIG=/test/configs/test.yaml \
 		--entrypoint=py.test \
 		${IMAGE} \
 		-vvv \

@@ -195,6 +195,12 @@ class Dispatcher(object):
             return False
 
     def is_registered(self, pattern, callback, label=None):
+        """Check if a callback is already registered with an executor.
+
+        :param string pattern: Subscription pattern
+        :param func callback: Callback to check
+        :param string label: If specified, look for specific label
+        """
         if self.has_executor(pattern, label):
             if label is None:
                 return any(callback in ex.registry
@@ -202,41 +208,49 @@ class Dispatcher(object):
             return callback in self.executors[pattern][label].registry
         return False
 
-    def register(self, pattern, callback, sync=False, label=None, max_workers=None):
+    def register(self, pattern, callback, label, max_workers=None):
         """Register a callback.
 
         :param string pattern: Exactly matching pattern string
+        :param func callback: Callback to register
         :param string label: If specified, only execute callbacks with this label
+        :param int max_workers: Worker count to use if executor doesn't already exist
         """
-        label = label or ('sync' if sync is True else ('async' if sync is False else label))
-        max_workers = 1 if sync else max_workers
         log = self.log.bind(pattern=pattern, fqn=fqn(callback),
-                            sync=sync, label=label, max_workers=max_workers)
+                            label=label, max_workers=max_workers)
 
         if label is None:
-            log.error('Missing sync or label argument')
+            log.error('Label cannot be None')
             return False
 
         if not self.has_executor(pattern, label):
             ex = self.init_executor(pattern, label, max_workers)
+            log.debug('Created new executor', executor=ex)
+        else:
+            ex = self.executors[pattern][label]
+            log.debug('Reusing existing executor', executor=ex)
+            if max_workers != ex.max_workers:
+                log.warning('Specified max_workers does not match existing executor',
+                            executor=ex,
+                            executor_max_workers=ex.max_workers)
 
-        ex = self.executors[pattern][label]
         return ex.register(callback)
 
-    def unregister(self, pattern, callback, sync=None, label=None):
-        """Remove a callback.
+    def unregister(self, pattern, callback, label=None):
+        """Remove a callback registered under a label.
+
+        If label is omitted, attempt to unregister the callback from all labels.
 
         :param string pattern: Exactly matching pattern string
         :param func callback: Callback to remove
         :param bool sync: True sets label to 'sync', False to 'async', and None to `label`
         :param string label: If specified, only remove callbacks with this label
         """
-        label = 'sync' if sync is True else ('async' if sync is False else label)
         labels = self.labels[pattern] if label is None else [label]
-        log = self.log.bind(pattern=pattern, fqn=fqn(callback), sync=sync, label=label)
+        log = self.log.bind(pattern=pattern, fqn=fqn(callback), label=label)
 
         if not self.has_executor(pattern, label):
-            log.warning('No executors found', executors=self.executors.keys())
+            log.warning('No executors found', executor_labels=self.labels)
             return False
 
         results = []
@@ -245,8 +259,21 @@ class Dispatcher(object):
             results += [ex.unregister(callback)]
         return any(results)
 
-    def unregister_all(self, pattern, sync=None, label=None, remove_executors=False, wait=True):
-        log = self.log.bind(pattern=pattern, sync=sync, label=label)
+    def unregister_all(self, pattern, label=None, remove_executors=False, wait=True):
+        """Remove all callbacks registered under a label.
+
+        If label is omitted, attempt to unregister all callbacks
+        registered under ``pattern``.
+
+        :param string pattern: Exactly matching pattern string
+        :param func callback: Callback to remove
+        :param string label: If specified, only remove callbacks with this label
+        :param bool remove_executors: Remove executors entirely
+            instead of only clearing the registries
+        :param bool wait: If remove_executors is True, wait for each
+            executor to shutdown before returning
+        """
+        log = self.log.bind(pattern=pattern, label=label, remove_executors=remove_executors, wait=wait)
         with self._lock:
             if not self.has_executor(pattern):
                 log.warning('No executors found', executors=self.executors.keys())
@@ -258,10 +285,12 @@ class Dispatcher(object):
                     self.executors[pattern][x].clear_registry()
 
     def dispatch(self, pattern, label, *args, **kwargs):
-        """Dispatch all callbacks registered under `pattern`.
+        """Dispatch callbacks registered under ``pattern`` by executor label.
 
         :param string pattern: Exactly matching pattern string
         :param string label: If specified, only execute callbacks with this label
+        :param args: Arguments to pass to each callback
+        :param kwargs: Keyword arguments to pass to each callback
         """
         log = self.log.bind(pattern=pattern, label=label, args=args, kwargs=kwargs)
         if not self.has_executor(pattern, label):
@@ -278,4 +307,11 @@ class Dispatcher(object):
             return tasks
 
     def dispatch_all(self, pattern, *args, **kwargs):
+        """Dispatch all callbacks registered under ``pattern``.
+
+        :param string pattern: Exactly matching pattern string
+        :param string label: If specified, only execute callbacks with this label
+        :param args: Arguments to pass to each callback
+        :param kwargs: Keyword arguments to pass to each callback
+        """
         return self.dispatch(pattern, None, *args, **kwargs)

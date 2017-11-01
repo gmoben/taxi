@@ -70,28 +70,28 @@ def dispatcher():
 
 
 @pytest.fixture()
-def single_dispatcher(dispatcher, pattern, label, max_workers, sync, mock_functions):
+def single_dispatcher(dispatcher, pattern, label, max_workers, mock_functions):
     for f in mock_functions:
         dispatcher.register(pattern=pattern,
                             callback=f,
-                            sync=sync,
-                            label=label)
+                            label=label,
+                            max_workers=max_workers)
     yield dispatcher
 
 
 @pytest.fixture()
-def multi_dispatcher(single_dispatcher, pattern, label, mock_functions, alt_pattern, alt_label):
+def multi_dispatcher(single_dispatcher, pattern, label, max_workers, mock_functions, alt_pattern, alt_label):
     # Register same functions under different patterns and labels
     disp = single_dispatcher
     for f in mock_functions:
         disp.register(pattern=alt_pattern,
                       callback=f,
-                      sync=sync,
-                      label=label)
+                      label=label,
+                      max_workers=max_workers)
         disp.register(pattern=pattern,
                       callback=f,
-                      sync=sync,
-                      label=alt_label)
+                      label=alt_label,
+                      max_workers=max_workers)
     yield disp
 
 

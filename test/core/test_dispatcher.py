@@ -53,23 +53,21 @@ def test_has_executor(dispatcher, pattern, label, max_workers):
     assert dispatcher.has_executor(pattern, label) is False
 
 
-def test_is_registered(single_dispatcher, pattern, sync, label, mock_functions):
+def test_is_registered(single_dispatcher, pattern, label, mock_functions):
     disp = single_dispatcher
     for f in mock_functions:
         assert disp.is_registered(pattern, f)
-        disp.unregister(pattern, f, sync, label)
+        disp.unregister(pattern, f, label)
         assert not disp.is_registered(pattern, f)
 
 
-def test_register(dispatcher, pattern, mock_functions, sync, label, max_workers):
-    label = 'sync' if sync else 'async'
-    max_workers = 1 if sync else None
+def test_register(dispatcher, pattern, mock_functions, label, max_workers):
     assert not dispatcher.has_executor(pattern, label)
     for f in mock_functions:
         dispatcher.register(pattern=pattern,
                             callback=f,
-                            sync=sync,
-                            label=label)
+                            label=label,
+                            max_workers=max_workers)
     assert dispatcher.has_executor(pattern, label)
     assert len(dispatcher.executors) == 1
     executor = dispatcher.executors[pattern][label]
@@ -80,22 +78,21 @@ def test_register(dispatcher, pattern, mock_functions, sync, label, max_workers)
         assert executor.pool._max_workers is not None
 
 
-def test_unregister(single_dispatcher, pattern, label, mock_functions, sync):
+def test_unregister(single_dispatcher, pattern, label, mock_functions):
     disp = single_dispatcher
     for f in mock_functions:
         assert disp.is_registered(pattern, f, label) is True
-        assert disp.unregister(pattern, f, sync, label) is True
+        assert disp.unregister(pattern, f, label) is True
         assert disp.is_registered(pattern, f, label) is False
 
 
 @pytest.mark.parametrize('remove_executors', [True, False])
 @pytest.mark.parametrize('wait', [True, False])
-def test_unregister_all(single_dispatcher, mock_functions, pattern, label, sync, remove_executors, wait):
+def test_unregister_all(single_dispatcher, mock_functions, pattern, label, remove_executors, wait):
     disp = single_dispatcher
     for f in mock_functions:
         assert disp.is_registered(pattern, f, label) is True
     disp.unregister_all(pattern=pattern,
-                        sync=sync,
                         label=label,
                         remove_executors=remove_executors,
                         wait=wait)
@@ -104,7 +101,7 @@ def test_unregister_all(single_dispatcher, mock_functions, pattern, label, sync,
         assert disp.has_executor(pattern, label) is (False if remove_executors else True)
 
 
-def test_dispatch(multi_dispatcher, pattern, sync, label, alt_pattern, alt_label,
+def test_dispatch(multi_dispatcher, pattern, label, alt_pattern, alt_label,
                   mock_functions, mock_args, mock_kwargs):
     disp = multi_dispatcher
 

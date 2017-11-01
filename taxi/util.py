@@ -186,11 +186,6 @@ def subtopic(*args):
     return '.'.join([str(x) for x in args])
 
 
-def get_engine():
-    """ Stub """
-    return 'nats'
-
-
 def get_concrete_engine(engine_name):
     module = importlib.import_module('.'.join(['taxi.core.engines', engine_name]))
     return module.ConcreteEngine

@@ -1,10 +1,11 @@
 import importlib
 
+from taxi.common import config
 from taxi.core.factory import NodeFactory, ManagerFactory, WorkerFactory
-from taxi.util import get_engine, get_concrete_engine
+from taxi.util import get_concrete_engine
 
 
-ConcreteEngine = get_concrete_engine(get_engine())
+ConcreteEngine = get_concrete_engine(config['engine'])
 
 
 def Node(node_type, *namespaces):

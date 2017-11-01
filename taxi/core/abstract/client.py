@@ -30,7 +30,7 @@ class AbstractClient(Wrappable):
         self.after('parse_message', self.handle_message)
         self.before('subscribe', self.register_callback)
         self.override('subscribe', self.queue_subscribe)
-        self.after('unsubscribe', self.unregister_callbacks)
+        self.after('unsubscribe', self.unregister_all_callbacks)
 
     def flush_subscriptions(self, *args, **kwargs):
         """Subscribe to any subjects with registered callbacks.
@@ -68,11 +68,13 @@ class AbstractClient(Wrappable):
                 log.debug('Matching pattern found', pattern=pattern)
                 self.dispatcher.dispatch(pattern, msg, *args, **kwargs)
 
-    def register_callback(self, pattern, callback, *_, **__):
-        self.dispatcher.register(pattern, callback)
+    def register_callback(self, pattern, callback, sync=False, label=None, max_workers=None):
+        label = label or ('sync' if sync is True else ('async' if sync is False else label))
+        max_workers = 1 if sync else max_workers
+        return self.dispatcher.register(pattern, callback, label, max_workers)
 
-    def unregister_callback(self, _, subject, *__, **___):
-        self.callback_manager.unregister_all(subject, remove_executors=True, wait=False)
+    def unregister_all_callbacks(self, _, pattern, *args, **kwargs):
+        return self.callback_manager.unregister_all(pattern, remove_executors=True, wait=False)
 
     def queue_subscription(self, imethod, *args, **kwargs):
         """Queue a subscription if not currently connected"""
