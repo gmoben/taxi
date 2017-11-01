@@ -2,6 +2,7 @@ from abc import ABCMeta, abstractmethod, abstractproperty
 
 import six
 
+from taxi.common import LOG, config
 from taxi.util import threadsafe_defaultdict as defaultdict
 
 
@@ -17,8 +18,9 @@ class AbstractEngine(object):
         :param boolean attempt_reconnect: Attempt reconnection to server if lost
 
         """
-        self.host = host
-        self.port = port
+        self.host = host or config['host']
+        self.port = port or config['port']
+        self.log = LOG.bind(host=self.host, port=self.port, attempt_reconnect=attempt_reconnect, connected=False)
         self.attempt_reconnect = attempt_reconnect
         super(AbstractEngine, self).__init__(*args, **kwargs)
 
@@ -28,12 +30,13 @@ class AbstractEngine(object):
 
         :param string host: Server hostname/IP
         :param string port: Server port
-
+        :returns: connection status
+        :rtype: boolean
         """
         raise NotImplementedError
 
     @abstractproperty
-    def connected(self):
+    def connected(self, host=None, port=None):
         """Inspect if the client is currently connected
 
         :returns: connection status

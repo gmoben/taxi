@@ -1,4 +1,4 @@
-from taxi.core.abstract import (
+from taxi.abstract import (
     AbstractClient,
     AbstractNode,
     AbstractManager,

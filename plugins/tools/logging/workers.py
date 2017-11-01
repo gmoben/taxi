@@ -4,7 +4,7 @@ import sys
 import time
 from pprint import pformat
 
-from taxi.core import Worker
+from taxi import Worker
 from taxi.util import subtopic
 
 logging.basicConfig(stream=sys.stdout)

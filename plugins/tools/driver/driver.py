@@ -2,7 +2,7 @@ import logging
 import sys
 
 from plugins.tools.driver import commands
-from taxi.core import Worker
+from taxi import Worker
 
 
 logging.basicConfig(stream=sys.stdout)

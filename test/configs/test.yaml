@@ -1,1 +1,4 @@
 engine: nats
+host: nats
+port: 4222
+subjects: /test/subjects.yaml

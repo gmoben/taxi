@@ -1,6 +1,5 @@
 # TODO: Remove this module
 
-import os
 from os.path import abspath, dirname, join
 
 from taxi.util import StringTree, load_yaml

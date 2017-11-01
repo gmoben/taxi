@@ -12,10 +12,6 @@ def test_connect(engine_cls):
     assert e.connected == True
 
 
-def test_connected(engine):
-    pytest.skip()
-
-
 def test_listen(engine):
     assert hasattr(engine.listen(), '__iter__')
     msg = next(engine.listen())
@@ -24,9 +20,9 @@ def test_listen(engine):
 
 def test_disconnect(engine):
     engine.connect()
-    assert engine.connected == True
+    assert engine.connected is True
     engine.disconnect()
-    assert engine.connected == False
+    assert engine.connected is False
 
 
 def test_parse_message(engine):
@@ -72,12 +68,11 @@ def test_unsubscribe(engine, engine_cls):
     channel = 'test'
     payload = 'payload'
 
-    with pytest.raises(Exception):
-        engine.unsubscribe(channel)
+    assert engine.unsubscribe(channel) is False
 
     callback = mock.MagicMock(return_value=None)
 
-    engine.subscribe(channel, callback=callback)
+    assert engine.subscribe(channel, callback=callback) is True
 
     e2 = engine_cls()
     e2.connect()

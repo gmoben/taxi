@@ -1,6 +1,6 @@
 import structlog
 
-from taxi.core.abstract import AbstractClient
+from taxi.abstract import AbstractClient
 
 from taxi.util import subtopic
 

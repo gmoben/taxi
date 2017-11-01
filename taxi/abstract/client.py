@@ -6,7 +6,7 @@ import uuid
 import six
 import structlog
 
-from taxi.core.callback import Dispatcher
+from taxi.dispatch import Dispatcher
 from taxi.util import Wrappable, subtopic
 
 

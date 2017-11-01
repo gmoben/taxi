@@ -16,15 +16,19 @@ build:
 	echo $(shell echo $(BASE_DIR))
 	docker build -t ${PROJECT} -t ${IMAGE} .
 
+_nocache:
+	docker build --no-cache -t ${PROJECT} -t ${IMAGE} .
+
 test: nats
 	docker run --rm -t \
 		--name ${PROJECT}-test \
-		--link nats-main \
+		--link nats-main:nats \
 		-v ${PWD}/test:/test:ro \
 		-e LOG_LEVEL=debug \
 		-e TAXI_CONFIG=/test/configs/test.yaml \
 		--entrypoint=py.test \
 		${IMAGE} \
+		-p no:cacheprovider \
 		-vvv \
 		/test
 

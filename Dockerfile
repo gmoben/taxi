@@ -14,4 +14,7 @@ RUN pip install -r requirements.test
 
 COPY $SOURCE_DIR $PYLIBS/$PROJECT_NAME
 
-EXPOSE 4222
+ENV TAXI_HOST=nats \
+    TAXI_PORT=4222
+
+EXPOSE ${TAXI_PORT}

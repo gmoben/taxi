@@ -3,12 +3,12 @@ from contextlib import contextmanager
 import mock
 import pytest
 
-from taxi.core.callback import Executor, Dispatcher
-from taxi.core.factory import ClientFactory, NodeFactory, ManagerFactory, WorkerFactory
+from taxi.dispatch import Executor, Dispatcher
+from taxi.factory import ClientFactory, NodeFactory, ManagerFactory, WorkerFactory
 from taxi.util import get_concrete_engine, list_modules
 
 
-ENGINE_MODULES = list_modules('taxi.core.engines')
+ENGINE_MODULES = list_modules('taxi.engines')
 
 
 @pytest.fixture(

@@ -187,7 +187,7 @@ def subtopic(*args):
 
 
 def get_concrete_engine(engine_name):
-    module = importlib.import_module('.'.join(['taxi.core.engines', engine_name]))
+    module = importlib.import_module('.'.join(['taxi.engines', engine_name]))
     return module.ConcreteEngine
 
 

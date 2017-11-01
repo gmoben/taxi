@@ -6,15 +6,17 @@ import structlog
 from taxi.util import load_yaml
 
 
-LOG = structlog.getLogger()
+LOG = structlog.getLogger('taxi')
 
 
 try:
     config_path = os.environ['TAXI_CONFIG']
+    config = ConfigObj(load_yaml(config_path))
 except KeyError:
+    raise RuntimeError("Required environment variable not set")
+except:
     LOG.exception()
-    raise RuntimeError("Environment variable 'TAXI_CONFIG' is not set")
-config = ConfigObj(load_yaml(config_path))
+    raise
 
 
 LOG = LOG.bind(engine=config['engine'])
