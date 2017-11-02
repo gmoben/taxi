@@ -1,8 +1,8 @@
-from taxi.abstract import (
-    AbstractClient,
-    AbstractNode,
-    AbstractManager,
-    AbstractWorker)
+from taxi.mixins import (
+    ClientMixin,
+    NodeMixin,
+    ManagerMixin,
+    WorkerMixin)
 from taxi.util import (
     memoize,
     subtopic
@@ -16,7 +16,7 @@ def ClientFactory(engine_class):
     :returns: ConcreteClient class
 
     """
-    class ConcreteClient(engine_class, AbstractClient):
+    class ConcreteClient(engine_class, ClientMixin):
         pass
 
     return ConcreteClient
@@ -30,7 +30,7 @@ def NodeFactory(engine_class, *namespaces):
     :returns: ConcreteNode class
 
     """
-    class ConcreteNode(engine_class, AbstractNode):
+    class ConcreteNode(engine_class, NodeMixin):
         NAMESPACE = subtopic(*namespaces)
 
     return ConcreteNode
@@ -44,7 +44,7 @@ def ManagerFactory(engine_class, *namespaces):
     :returns: ConcreteManager class
 
     """
-    class ConcreteManager(engine_class, AbstractManager):
+    class ConcreteManager(engine_class, ManagerMixin):
         NAMESPACE = subtopic(*namespaces)
 
     return ConcreteManager
@@ -58,7 +58,7 @@ def WorkerFactory(engine_class, *namespaces):
     :returns: ConcreteWorker class
 
     """
-    class ConcreteWorker(engine_class, AbstractWorker):
+    class ConcreteWorker(engine_class, WorkerMixin):
         NAMESPACE = subtopic(*namespaces)
 
     return ConcreteWorker

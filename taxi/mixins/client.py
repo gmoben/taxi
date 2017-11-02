@@ -14,11 +14,11 @@ LOG = structlog.getLogger(__name__)
 
 
 @six.add_metaclass(ABCMeta)
-class AbstractClient(Wrappable):
+class ClientMixin(Wrappable):
     """Mixin for AbstractEngine with callback management and convenience methods"""
 
     def __init__(self, *args, **kwargs):
-        super(AbstractClient, self).__init__(self, *args, **kwargs)
+        super(ClientMixin, self).__init__(self, *args, **kwargs)
         self.guid = str(uuid.uuid4())
         self.log = LOG.bind(guid=self.guid)
 

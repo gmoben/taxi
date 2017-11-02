@@ -1,18 +1,18 @@
 import structlog
 
-from taxi.abstract import AbstractClient
+from taxi.mixins import ClientMixin
 
 from taxi.util import subtopic
 
 LOG = structlog.getLogger(__name__)
 
 
-class AbstractNode(AbstractClient):
+class NodeMixin(ClientMixin):
     """Convenience class that executes ``self.setup`` then automatically connects"""
     NAMESPACE = None
 
     def __init__(self, *args, **kwargs):
-        super(AbstractNode, self).__init__(self, *args, **kwargs)
+        super(NodeMixin, self).__init__(self, *args, **kwargs)
 
         LOG.info('Starting %s [%s]', self.__class__.__name__, self.NAMESPACE)
 
@@ -24,7 +24,7 @@ class AbstractNode(AbstractClient):
         pass
 
 
-class AbstractManager(AbstractNode):
+class ManagerMixin(NodeMixin):
 
     def poll_workers(self, timeout=5):
         """Send a status request to workers in this namespace.
@@ -59,12 +59,12 @@ class AbstractManager(AbstractNode):
             self.publish(subtopic(HA.WORK, self.NAMESPACE), payload)
 
 
-class AbstractWorker(AbstractNode):
+class WorkerMixin(NodeMixin):
     """Worker node acting on work in its NAMESPACE"""
 
     def __init__(self, *args, **kwargs):
         """Initialize the worker and subscribe to work subjects for the namespace"""
-        super(AbstractWorker, self).__init__(*args, **kwargs)
+        super(WorkerMixin, self).__init__(*args, **kwargs)
 
         self.after('connect', self._subscribe_ha)
 
