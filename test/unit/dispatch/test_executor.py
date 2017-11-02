@@ -56,13 +56,13 @@ def test_unregister(executor, mock_functions):
     assert len(executor.registry) == 0
 
 
-def test_clear_registry(executor, mock_functions):
+def test_clear(executor, mock_functions):
     old_registry = executor.registry
     for f in mock_functions:
         executor.register(f)
     assert executor.registry == set(mock_functions)
     assert executor is not set(mock_functions)
-    executor.clear_registry()
+    executor.clear()
     assert len(executor.registry) == 0
     assert executor.registry is old_registry
 

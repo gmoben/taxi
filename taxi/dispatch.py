@@ -24,13 +24,13 @@ class Executor(object):
     def __init__(self, max_workers, pattern=None, label=None):
         """Initiailize an Executor.
 
+        :param int max_workers: ThreadPoolExecutor worker pool size
         :param string pattern: Optional channel pattern (used for logging)
         :param string label: Optional label (used for logging)
-        :param int max_workers: ThreadPoolExecutor worker pool size
         """
+        self.max_workers = max_workers
         self.pattern = pattern
         self.label = label
-        self.max_workers = max_workers
         self.pool = ThreadPoolExecutor(max_workers=self.max_workers)
         self.registry = set()
         self.registry_lock = threading.RLock()
@@ -100,7 +100,7 @@ class Executor(object):
             log.warning('Callback not registered')
             return False
 
-    def clear_registry(self):
+    def clear(self):
         """Clear all callbacks from the registry."""
         with self.registry_lock:
             self.registry.clear()
@@ -282,7 +282,7 @@ class Dispatcher(object):
                 if remove_executors:
                     self.remove_executor(pattern, x, wait)
                 else:
-                    self.executors[pattern][x].clear_registry()
+                    self.executors[pattern][x].clear()
 
     def dispatch(self, pattern, label, *args, **kwargs):
         """Dispatch callbacks registered under ``pattern`` by executor label.
