@@ -24,6 +24,7 @@ test: nats
 		--name ${PROJECT}-test \
 		--link nats-main:nats \
 		-v ${PWD}/test:/test:ro \
+		-v ${PWD}/coverage:/coverage \
 		-e LOG_LEVEL=debug \
 		-e TAXI_CONFIG=/test/configs/test.yaml \
 		--entrypoint=py.test \
@@ -31,7 +32,9 @@ test: nats
 		-p no:cacheprovider \
 		-vvv \
 		--cov ${PROJECT} \
-		/test
+		--cov-report html:/coverage/lcov-report \
+		--cov-report xml:/coverage/coverage.xml \
+		/test/unit
 
 bash:
 	docker run -it --rm \
