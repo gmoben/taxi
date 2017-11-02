@@ -100,6 +100,10 @@ class Executor(object):
             log.warning('Callback not registered')
             return False
 
+    def is_registered(self, callback):
+        with self.registry_lock:
+            return callback in self.registry
+
     def clear(self):
         """Clear all callbacks from the registry."""
         with self.registry_lock:
@@ -203,9 +207,8 @@ class Dispatcher(object):
         """
         if self.has_executor(pattern, label):
             if label is None:
-                return any(callback in ex.registry
-                           for k, ex in self.executors[pattern].items())
-            return callback in self.executors[pattern][label].registry
+                return any(ex.is_registered(callback) for ex in self.executors[pattern].values())
+            return self.executors[pattern][label].is_registered(callback)
         return False
 
     def register(self, pattern, callback, label, max_workers=None):
