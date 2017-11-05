@@ -48,7 +48,10 @@ class Executor(object):
             if e:
                 log.exception('Task raised an exception')
             else:
-                log.debug('Submitted task completed')
+                try:
+                    log.debug('Submitted task completed')
+                except ValueError:
+                    pass # Suppress during shutdown
 
         task = self.pool.submit(func, *args, **kwargs)
         task.add_done_callback(

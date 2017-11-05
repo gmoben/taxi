@@ -4,3 +4,5 @@ ORG ?= kinase
 export BASE_DIR = $(dir $(abspath $(filter %Makefile.common, $(MAKEFILE_LIST))))
 
 mktag = $(shell git ls-files -s $(CURDIR) $(1) | shasum - | awk '{print $$1}')
+
+BRANCH_NAME ?= $(shell git rev-parse --abbrev-ref HEAD)

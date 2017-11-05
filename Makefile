@@ -22,7 +22,7 @@ nocache:
 test: nats
 	docker run --rm -t \
 		--name ${PROJECT}-test \
-		--link nats-main:nats \
+		--network ${NATS_NETWORK} \
 		-v ${PWD}/test:/test:ro \
 		-v ${PWD}/coverage:/coverage \
 		-e LOG_LEVEL=debug \
@@ -39,7 +39,7 @@ test: nats
 bash:
 	docker run -it --rm \
 		--name ${PROJECT} \
-		--link nats-main \
+		--network ${NATS_NETWORK} \
 		-v ${PWD}/test:/test \
 		-e LOG_LEVEL=debug \
 		--entrypoint=sh \

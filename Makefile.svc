@@ -1,9 +1,23 @@
 #-*- mode:makefile-gmake -*-
+
+PROJECT ?= taxi
+TEST_CONTAINER = ${BRANCH_NAME}-${PROJECT}-test
+TEST_NETWORK = ${BRANCH_NAME}-${PROJECT}-test-network
+
+NATS = nats
+NATS_NETWORK = ${TEST_NETWORK}-nats
+
 PHONY += nats
 
 .PHONY: $(PHONY)
 
-nats:
+nats: nats_network
 	-docker run -d --rm \
-		--name nats-main \
-		nats
+		--name ${NATS} \
+		--network ${NATS_NETWORK} \
+		library/nats
+
+nats_network:
+	-docker network create \
+		--driver bridge \
+		${NATS_NETWORK}
