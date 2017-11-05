@@ -1,6 +1,8 @@
 from concurrent.futures import ThreadPoolExecutor
 import random
+import time
 
+import mock
 import pytest
 
 
@@ -28,6 +30,19 @@ def test_submit(executor, mock_submissions):
         validations.append((submission, future))
     validate_submissions(validations)
 
+    exception = Exception('BOOM')
+    boom = mock.Mock(side_effect=exception)
+    future = executor.submit(boom)
+    assert future.exception(timeout=3) == exception
+
+    # Saturate the pool and cancel a queued task
+    sleepy = mock.Mock(side_effect=lambda: time.sleep(1))
+    for _ in range(executor.pool._max_workers):
+        executor.submit(sleepy)
+    cancelme = executor.submit(sleepy)
+    assert cancelme.cancel() is True
+    assert cancelme.cancelled() is True
+
 
 @pytest.mark.parametrize('wait', [True, False])
 def test_shutdown(executor, wait):
@@ -54,6 +69,8 @@ def test_unregister(executor, mock_functions):
         assert executor.unregister(func) is True
         assert executor.registry == set(mock_functions)
     assert len(executor.registry) == 0
+
+    assert executor.unregister(mock.Mock()) is False
 
 
 def test_clear(executor, mock_functions):

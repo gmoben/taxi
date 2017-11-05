@@ -63,18 +63,32 @@ class ClientMixin(Wrappable):
         """
         subject = msg['subject']
         log = self.log.bind(msg=msg, args=args, kwargs=kwargs)
-        for pattern in self.dispatcher.patterns:
+        for pattern, group in self.dispatcher.groups.items():
             if self.pattern_match(pattern, subject):
                 log.debug('Matching pattern found', pattern=pattern)
-                self.dispatcher.dispatch(pattern, msg, *args, **kwargs)
+                group.dispatch(*args, **kwargs)
 
     def register_callback(self, pattern, callback, sync=False, label=None, max_workers=None):
         label = label or ('sync' if sync is True else ('async' if sync is False else label))
         max_workers = 1 if sync else max_workers
-        return self.dispatcher.register(pattern, callback, label, max_workers)
+        if not pattern in self.dispatcher.groups:
+            group = self.dispatcher.init_group(pattern)
+        else:
+            group = self.dispatcher.groups[pattern]
+
+        if not label in group.executors:
+            group.init_executor(label, max_workers)
+
+        return group.register(callback, label)
 
     def unregister_callbacks(self, _, pattern, *args, **kwargs):
-        return self.callback_manager.unregister_all(pattern, remove_executors=True, wait=False)
+        try:
+            group = self.dispatcher.groups[pattern]
+        except KeyError:
+            self.log.error('Pattern has no callbacks', pattern=pattern)
+            return False
+
+        return group.unregister_all(remove_executors=True, wait=False)
 
     def queue_subscription(self, imethod, *args, **kwargs):
         """Queue a subscription if not currently connected"""

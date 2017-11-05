@@ -3,7 +3,7 @@ from contextlib import contextmanager
 import mock
 import pytest
 
-from taxi.dispatch import Executor, Dispatcher
+from taxi.dispatch import Executor, DispatchGroup, Dispatcher
 from taxi.factory import ClientFactory, NodeFactory, ManagerFactory, WorkerFactory
 from taxi.util import get_concrete_engine, list_modules
 
@@ -28,7 +28,7 @@ def sync(expectations):
 
 
 @pytest.fixture()
-def label(expectations):
+def executor_name(expectations):
     return expectations[1]
 
 
@@ -48,20 +48,33 @@ def alt_pattern():
 
 
 @pytest.fixture()
-def alt_label():
-    return 'alt_label'
+def alt_executor_name():
+    return 'alt_executor_name'
 
 
 @pytest.fixture()
-def executor(request, label, max_workers):
+def executor(request, executor_name, max_workers):
     e = Executor(max_workers=max_workers,
-                 pattern='foo.bar',
-                 label=label)
+                 name=executor_name)
     if max_workers is not None:
         assert e.pool._max_workers == max_workers
     assert len(e.registry) == 0
     yield e
-    e.shutdown(wait=True)
+    e.shutdown(wait=False)
+
+
+@pytest.fixture()
+def dispatch_group(pattern):
+    return DispatchGroup(pattern)
+
+
+@pytest.fixture()
+def loaded_group(dispatch_group, executor_name, max_workers, mock_functions):
+    assert dispatch_group.init_executor(executor_name, max_workers)
+    for f in mock_functions:
+        assert dispatch_group.register(f, executor_name) is True
+    yield dispatch_group
+    dispatch_group.clear_executors()
 
 
 @pytest.fixture()
@@ -70,34 +83,35 @@ def dispatcher():
 
 
 @pytest.fixture()
-def single_dispatcher(dispatcher, pattern, label, max_workers, mock_functions):
+def single_dispatcher(dispatcher, pattern, executor_name, max_workers, mock_functions):
+    dispatcher.init_group(pattern, [(executor_name, max_workers)])
     for f in mock_functions:
-        dispatcher.register(pattern=pattern,
-                            callback=f,
-                            label=label,
-                            max_workers=max_workers)
+        dispatcher.register(callback=f,
+                            group_name=pattern,
+                            executor_name=executor_name)
     yield dispatcher
 
 
 @pytest.fixture()
-def multi_dispatcher(single_dispatcher, pattern, label, max_workers, mock_functions, alt_pattern, alt_label):
-    # Register same functions under different patterns and labels
+def multi_dispatcher(single_dispatcher, executor_name, max_workers, alt_mock_functions, alt_pattern):
+    # Register same functions under different patterns and executor_names
     disp = single_dispatcher
-    for f in mock_functions:
-        disp.register(pattern=alt_pattern,
-                      callback=f,
-                      label=label,
-                      max_workers=max_workers)
-        disp.register(pattern=pattern,
-                      callback=f,
-                      label=alt_label,
-                      max_workers=max_workers)
+    disp.init_group(alt_pattern, [(executor_name, max_workers)])
+    for f in alt_mock_functions:
+        disp.register(callback=f,
+                      group_name=alt_pattern,
+                      executor_name=executor_name)
     yield disp
 
 
 @pytest.fixture()
 def mock_functions():
     return [mock.Mock(return_value=x) for x in range(10)]
+
+
+@pytest.fixture()
+def alt_mock_functions():
+    return [mock.Mock(return_value=x) for x in range(10, 20)]
 
 
 @pytest.fixture(
