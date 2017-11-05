@@ -1,4 +1,5 @@
 from concurrent.futures import ThreadPoolExecutor
+from functools import wraps
 import threading
 
 import structlog
@@ -44,7 +45,7 @@ class Executor(object):
         """
         def on_complete(task, name, args, kwargs):
             """ Log useful info about task status """
-            log = self.log.bind(fqn=name, args=args, kwargs=kwargs)
+            log = LOG.bind(fqn=name, args=args, kwargs=kwargs)
             e = task.exception()
             if e:
                 log.exception('Task raised an exception')
@@ -54,7 +55,16 @@ class Executor(object):
                 except ValueError:
                     pass # Suppress during shutdown
 
-        task = self.pool.submit(func, *args, **kwargs)
+        @wraps(func)
+        def _wrapped_func(*args, **kwargs):
+            log = LOG.bind(fqn=fqn(func))
+            try:
+                func(*args, **kwargs)
+            except Exception as e:
+                self.log.exception(exc_info=e)
+                raise
+
+        task = self.pool.submit(_wrapped_func, *args, **kwargs)
         task.add_done_callback(
             lambda task, n=fqn(func), a=args, k=kwargs: on_complete(task, n, a, k))
         self.log.debug('Submitted task', fqn=fqn(func), task=task)

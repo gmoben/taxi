@@ -158,7 +158,8 @@ class ConcreteEngine(AbstractEngine):
         return False
 
     def parse_message(self, msg):
-        op, _, body = msg.strip().partition(' ')
+        msg = msg.strip()
+        op, _, body = msg.partition(' ')
         log = self.log.bind(op=op)
         meta = AttrDict(op=op, sid=None, reply_to=None)
         parsed_msg = AttrDict(channel='', meta=meta, data=None)
@@ -166,6 +167,8 @@ class ConcreteEngine(AbstractEngine):
             self.pong()
         elif op == 'INFO':
             parsed_msg.data = json.loads(body)
+        elif op in ['+OK', '-ERR']:
+            parsed_msg.data = body
         elif op == 'MSG':
             # Split between header and data
             split_msg = msg.strip().split('\r\n')
@@ -195,10 +198,10 @@ class ConcreteEngine(AbstractEngine):
             parsed_msg.data = data
             log.debug('Message parsed', parsed_message=parsed_msg)
         else:
-            log.warning('Did not parse message', message=msg)
+            log.warning('Unknown OP', message=msg)
 
         if parsed_msg.data is None:
-            parsed_msg.data = msg
+            parsed_msg.data = body or msg
 
         return parsed_msg
 

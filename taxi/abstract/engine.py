@@ -73,10 +73,7 @@ class AbstractEngine(object):
         :returns: Parsed message containing the keys 'channel', 'data', and 'meta'
 
         """
-        # Build an empty message with the raw message contents as the data
-        parsed_message = defaultdict(str)
-        parsed_message['data'] = msg
-        return parsed_message
+        raise NotImplementedError
 
     @abstractmethod
     def publish(self, channel, data, wait=False, **options):
