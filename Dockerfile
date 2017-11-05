@@ -18,6 +18,8 @@ COPY setup.py .
 COPY $SOURCE_DIR ./$SOURCE_DIR
 RUN python setup.py develop
 
+COPY config ./config
+
 ENV TAXI_CONFIG=/opt/taxi/config/default.yaml
 ENTRYPOINT ["taxi", "start"]
 

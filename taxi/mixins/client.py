@@ -25,11 +25,11 @@ class ClientMixin(Wrappable):
         self.dispatcher = Dispatcher()
         self.subscription_queue = []
 
-        self.after('connect', self.flush_callbacks)
+        self.after('connect', self.flush_subscriptions)
         self.override('listen', self.consume)
         self.after('parse_message', self.handle_message)
         self.before('subscribe', self.register_callback)
-        self.override('subscribe', self.queue_subscribe)
+        self.override('subscribe', self.queue_subscription)
         self.after('unsubscribe', self.unregister_callbacks)
 
     def flush_subscriptions(self, *args, **kwargs):
@@ -66,7 +66,7 @@ class ClientMixin(Wrappable):
         for pattern, group in self.dispatcher.groups.items():
             if self.pattern_match(pattern, subject):
                 log.debug('Matching pattern found', pattern=pattern)
-                group.dispatch(*args, **kwargs)
+                group.dispatch(msg)
 
     def register_callback(self, pattern, callback, sync=False, label=None, max_workers=None):
         label = label or ('sync' if sync is True else ('async' if sync is False else label))

@@ -8,7 +8,7 @@ from collections import defaultdict, deque, namedtuple
 import six
 import yaml
 
-LOG = logging.getLogger(__name__)
+LOG = logging.getLogger()
 
 
 def load_yaml(filename):
@@ -35,6 +35,12 @@ def callable_fqn(method):
         return '.'.join([method.__module__, method.__self__.__class__.__name__, method.__name__])
     elif type(method).__name__ == 'function':
         return '.'.join([method.__module__, method.__name__])
+
+
+class AttrDict(dict):
+    def __init__(self, *args, **kwargs):
+        super(AttrDict, self).__init__(*args, **kwargs)
+        self.__dict__ = self
 
 
 class threadsafe_defaultdict(defaultdict):

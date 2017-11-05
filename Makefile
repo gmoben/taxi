@@ -36,6 +36,21 @@ test: nats
 		--cov-report xml:/coverage/coverage.xml \
 		/test/unit
 
+logger: nats
+	docker run --rm -t \
+		--name ${PROJECT}-logger \
+		--network ${NATS_NETWORK} \
+		${IMAGE} \
+		taxi.tools.logging MessageLogger
+
+test_driver:
+	docker run --rm -t \
+		--name ${PROJECT}-driver \
+		--network ${NATS_NETWORK} \
+		--entrypoint='taxi' \
+		${IMAGE} \
+		test 100 test
+
 bash:
 	docker run -it --rm \
 		--name ${PROJECT} \

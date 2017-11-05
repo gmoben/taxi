@@ -7,7 +7,11 @@ import threading
 import six
 
 from taxi.abstract import AbstractEngine
-from taxi.util import callable_fqn as fqn
+from taxi.util import (
+    AttrDict,
+    callable_fqn as fqn,
+    threadsafe_defaultdict as defaultdict
+)
 
 
 class ConcreteEngine(AbstractEngine):
@@ -155,6 +159,7 @@ class ConcreteEngine(AbstractEngine):
 
     def parse_message(self, msg):
         log = self.log.bind(raw_message=msg)
+        parsed_msg = AttrDict(subject='', sid=None, reply_to=None, data=msg)
         if msg.startswith('PING'):
             self.pong()
         elif msg.startswith('MSG'):
@@ -179,13 +184,15 @@ class ConcreteEngine(AbstractEngine):
             if len(header) == 2:
                 # Set reply_to to None
                 header.append(None)
-            parsed_msg = dict(zip(fields, header))
-            parsed_msg['data'] = data
-
-            for k, v in parsed_msg.items():
-                setattr(parsed_msg, k, v)
-
+            parsed_msg = AttrDict(zip(fields, header))
+            parsed_msg.data = data
             log.debug('Message parsed', parsed_message=parsed_msg)
+        else:
+            log.warning('Did not parse message')
+            parsed_msg.data = msg
+
+        for k, v in parsed_msg.items():
+            parsed_msg.__setattr__(k, v)
 
         return parsed_msg
 

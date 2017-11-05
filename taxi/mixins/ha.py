@@ -16,7 +16,8 @@ class NodeMixin(ClientMixin):
     def __init__(self, *args, **kwargs):
         super(NodeMixin, self).__init__(self, *args, **kwargs)
 
-        LOG.info('Starting %s [%s]', self.__class__.__name__, self.NAMESPACE)
+        self.log = LOG.bind(class_name=self.__class__.__name__, namespace=self.NAMESPACE)
+        self.log.info('Starting node')
 
         self.setup()
         self.connect()
