@@ -32,22 +32,22 @@ class ConcreteEngine(AbstractEngine):
         if telnet and hasattr(self, 'disconnect'):
             self.disconnect()
 
-    def _get_sid(self, subject):
+    def _get_sid(self, channel):
         """ Get a new SID starting from 0 for this connection"""
         with self._sid_lock:
             try:
-                sid = self._subscription_ids[subject]
+                sid = self._subscription_ids[channel]
             except KeyError:
                 self._last_sid += 1
-                self._subscription_ids[subject] = self._last_sid
+                self._subscription_ids[channel] = self._last_sid
                 sid = self._last_sid
         return sid
 
-    def _remove_sid(self, subject):
+    def _remove_sid(self, channel):
         with self._sid_lock:
             try:
-                sid = self._subscription_ids[subject]
-                del self._subscription_ids[subject]
+                sid = self._subscription_ids[channel]
+                del self._subscription_ids[channel]
             except KeyError:
                 sid = None
         return sid
@@ -158,11 +158,15 @@ class ConcreteEngine(AbstractEngine):
         return False
 
     def parse_message(self, msg):
-        log = self.log.bind(raw_message=msg)
-        parsed_msg = AttrDict(subject='', sid=None, reply_to=None, data=msg)
-        if msg.startswith('PING'):
+        op, _, body = msg.strip().partition(' ')
+        log = self.log.bind(op=op)
+        meta = AttrDict(op=op, sid=None, reply_to=None)
+        parsed_msg = AttrDict(channel='', meta=meta, data=None)
+        if op == 'PING':
             self.pong()
-        elif msg.startswith('MSG'):
+        elif op == 'INFO':
+            parsed_msg.data = json.loads(body)
+        elif op == 'MSG':
             # Split between header and data
             split_msg = msg.strip().split('\r\n')
 
@@ -180,76 +184,78 @@ class ConcreteEngine(AbstractEngine):
                 log.error('Invalid message header')
                 return None
 
-            fields = ['subject', 'sid', 'reply_to']
+            fields = ['channel', 'sid', 'reply_to']
             if len(header) == 2:
                 # Set reply_to to None
                 header.append(None)
-            parsed_msg = AttrDict(zip(fields, header))
+            fields = AttrDict(zip(fields, header))
+            meta.sid = fields.sid
+            meta.reply_to = fields.reply_to
+            parsed_msg.channel = fields.channel
             parsed_msg.data = data
             log.debug('Message parsed', parsed_message=parsed_msg)
         else:
-            log.warning('Did not parse message')
-            parsed_msg.data = msg
+            log.warning('Did not parse message', message=msg)
 
-        for k, v in parsed_msg.items():
-            parsed_msg.__setattr__(k, v)
+        if parsed_msg.data is None:
+            parsed_msg.data = msg
 
         return parsed_msg
 
     @staticmethod
-    def pattern_match(pattern, subject):
-        if pattern == subject:
+    def pattern_match(pattern, channel):
+        if pattern == channel:
             return True
 
         if pattern.endswith('>'):
-            if subject.startswith(pattern[:-1]):
+            if channel.startswith(pattern[:-1]):
                 return True
             else:
                 # Replace > with * for glob matching step below
                 pattern = '{}*'.format(pattern[:-1])
 
-        if '*' in pattern and fnmatch.fnmatchcase(subject, pattern):
+        if '*' in pattern and fnmatch.fnmatchcase(channel, pattern):
             # Pattern matches * wildcard
             return True
         return False
 
-    def get_subtopic_pattern(self, subject, shallow=True):
+    def get_subtopic_pattern(self, channel, shallow=True):
         if shallow:
             suffix = '.*'
         else:
             suffix = '.>'
 
-        return '{}{}'.format(subject, suffix)
+        return '{}{}'.format(channel, suffix)
 
-    def publish(self, subject, data, reply_to=None, wait=False):
+    def publish(self, channel, data, reply_to=None, wait=False):
         # TODO: Implement wait
-        self.log.debug('Publish', subject=subject, data=data, reply_to=reply_to, wait=wait)
+        self.log.debug('Publish', channel=channel, data=data, reply_to=reply_to, wait=wait)
 
-        args = [str(x) for x in [subject, reply_to, len(data)] if x is not None]
+        args = [str(x) for x in [channel, reply_to, len(data)] if x is not None]
         return self._write('PUB {}\r\n{}\r\n'.format(' '.join(args), data))
 
-    def subscribe(self, subject, callback=None, queue_group=None, sync=False, wait=False):
-        """Subscribe to a subject.
+    def subscribe(self, channel, callback=None, queue_group=None, sync=False, wait=False):
+        """Subscribe to a channel.
 
         :param string queue_group: If specified, join this queue group
 
         """
-        # If the subject already has an active subscription, reuse the first SID
-        sid = self._get_sid(subject)
-        self.log.debug('Subscribe', subject=subject, sid=sid, queue_group=queue_group,
+        # If the channel already has an active subscription, reuse the first SID
+        sid = self._get_sid(channel)
+        self.log.debug('Subscribe', channel=channel, sid=sid, queue_group=queue_group,
                        sync=sync, callback=fqn(callback), wait=wait)
-        args = [str(x) for x in [subject, queue_group, sid] if x is not None]
+        args = [str(x) for x in [channel, queue_group, sid] if x is not None]
         return self._write('SUB {}\r\n'.format(' '.join(args)))
 
-    def unsubscribe(self, subject, max_msgs=None):
-        """Unsubscribe from a subject.
+    def unsubscribe(self, channel, max_msgs=None):
+        """Unsubscribe from a channel.
 
         :param int max_msgs: Number of messages to wait for before
             automatically unsubscribing
 
         """
-        sid = self._remove_sid(subject)
-        log = self.log.bind(subject=subject, sid=sid, max_msgs=max_msgs)
+        sid = self._remove_sid(channel)
+        log = self.log.bind(channel=channel, sid=sid, max_msgs=max_msgs)
         if sid is None:
             log.error('Subscription ID not found', subscription_ids=self._subscription_ids)
             return False

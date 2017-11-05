@@ -10,4 +10,4 @@ class MessageLogger(_LogWorker):
 
     def on_msg(self, msg):
         """ Print truncated message """
-        self.log.info(msg.data[:1024].strip())
+        self.log.info(str(msg.data)[:1024].strip(), meta=msg.meta)

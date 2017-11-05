@@ -5,6 +5,7 @@ import structlog
 
 from taxi.util import callable_fqn as fqn
 
+
 LOG = structlog.getLogger(__name__)
 
 

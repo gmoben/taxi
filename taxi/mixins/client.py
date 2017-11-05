@@ -20,7 +20,7 @@ class ClientMixin(Wrappable):
     def __init__(self, *args, **kwargs):
         super(ClientMixin, self).__init__(self, *args, **kwargs)
         self.guid = str(uuid.uuid4())
-        self.log = LOG.bind(guid=self.guid)
+        self.log = self.log.bind(guid=self.guid)
 
         self.dispatcher = Dispatcher()
         self.subscription_queue = []
@@ -33,7 +33,7 @@ class ClientMixin(Wrappable):
         self.after('unsubscribe', self.unregister_callbacks)
 
     def flush_subscriptions(self, *args, **kwargs):
-        """Subscribe to any subjects with registered callbacks.
+        """Subscribe to any channels with registered callbacks.
 
         Executes immediately after ``Engine.connect``
         """
@@ -61,10 +61,10 @@ class ClientMixin(Wrappable):
 
         :param dict msg: Parsed message returned from ``Engine.parse_message``
         """
-        subject = msg['subject']
+        channel = msg['channel']
         log = self.log.bind(msg=msg, args=args, kwargs=kwargs)
         for pattern, group in self.dispatcher.groups.items():
-            if self.pattern_match(pattern, subject):
+            if self.pattern_match(pattern, channel):
                 log.debug('Matching pattern found', pattern=pattern)
                 group.dispatch(msg)
 
@@ -96,11 +96,11 @@ class ClientMixin(Wrappable):
             return imethod(*args, **kwargs)
         return self.subscription_queue.append((args, kwargs))
 
-    def request(self, subject, data, callback, timeout):
+    def request(self, channel, data, callback, timeout):
         reply_to = subtopic('INBOX', self.guid)
 
         self.subscribe(reply_to, callback)
-        self.publish(subject, data, reply_to=reply_to)
+        self.publish(channel, data, reply_to=reply_to)
 
         time.sleep(timeout)
         self.unsubscribe(reply_to)

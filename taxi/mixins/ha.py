@@ -4,8 +4,6 @@ from taxi.mixins import ClientMixin
 
 from taxi.util import subtopic, StringTree
 
-LOG = structlog.getLogger(__name__)
-
 HA = StringTree('ha', ['work', 'status'])
 
 
@@ -16,7 +14,7 @@ class NodeMixin(ClientMixin):
     def __init__(self, *args, **kwargs):
         super(NodeMixin, self).__init__(self, *args, **kwargs)
 
-        self.log = LOG.bind(class_name=self.__class__.__name__, namespace=self.NAMESPACE)
+        self.log = structlog.getLogger(self.__class__.__name__).bind(namespace=self.NAMESPACE)
         self.log.info('Starting node')
 
         self.setup()
@@ -64,7 +62,7 @@ class WorkerMixin(NodeMixin):
     """Worker node acting on work in its NAMESPACE"""
 
     def __init__(self, *args, **kwargs):
-        """Initialize the worker and subscribe to work subjects for the namespace"""
+        """Initialize the worker and subscribe to work channels for the namespace"""
         super(WorkerMixin, self).__init__(*args, **kwargs)
 
         self.after('connect', self._subscribe_ha)

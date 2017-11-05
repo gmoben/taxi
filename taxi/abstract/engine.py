@@ -20,7 +20,7 @@ class AbstractEngine(object):
         """
         self.host = host or config['host']
         self.port = port or config['port']
-        self.log = LOG.bind(host=self.host, port=self.port, attempt_reconnect=attempt_reconnect, connected=False)
+        self.log = LOG.bind(connected=False)
         self.attempt_reconnect = attempt_reconnect
         super(AbstractEngine, self).__init__(*args, **kwargs)
 
@@ -70,7 +70,7 @@ class AbstractEngine(object):
         """Transform incoming messages before executing callbacks.
 
         :param string msg: The raw incoming message
-        :returns: Parsed message containing the keys 'subject', 'data', and 'meta'
+        :returns: Parsed message containing the keys 'channel', 'data', and 'meta'
 
         """
         # Build an empty message with the raw message contents as the data
@@ -79,10 +79,10 @@ class AbstractEngine(object):
         return parsed_message
 
     @abstractmethod
-    def publish(self, subject, data, wait=False, **options):
-        """Publish a data to a subject.
+    def publish(self, channel, data, wait=False, **options):
+        """Publish a data to a channel.
 
-        :param string subject: The destination channel
+        :param string channel: The destination channel
         :param string data: UTF-8 encoded message data
         :param boolean wait: Wait for reciept from server
         :param **options: Any additional options for the implementation
@@ -94,12 +94,12 @@ class AbstractEngine(object):
         raise NotImplementedError
 
     @abstractmethod
-    def subscribe(self, subject, callback, wait=False, **options):
-        """Subscribe to a subject literally.
+    def subscribe(self, channel, callback, wait=False, **options):
+        """Subscribe to a channel literally.
 
-        :param string subject: The subject name to subscribe to
+        :param string channel: The channel name to subscribe to
         :param function callback: Callback to execute when a message
-            is received from this subject
+            is received from this channel
         :param boolean wait: Wait for reciept from server
         :param **options: Any additional options for the implementation
 
@@ -110,17 +110,17 @@ class AbstractEngine(object):
         raise NotImplementedError
 
     @abstractmethod
-    def unsubscribe(self, subject):
+    def unsubscribe(self, channel):
         """Unsubscribe by subscription id.
 
-        :param string subject: The subject pattern to unsubscribe from
+        :param string channel: The channel pattern to unsubscribe from
 
         """
         raise NotImplementedError
 
     @staticmethod
-    def pattern_match(pattern, subject):
-        """Determine if a given subject pattern matches a string.
+    def pattern_match(pattern, channel):
+        """Determine if a given channel pattern matches a string.
 
         Defaults to performing an equality comparison between the parameters.
 
@@ -130,30 +130,30 @@ class AbstractEngine(object):
         :rtype: boolean
 
         """
-        return pattern == subject
+        return pattern == channel
 
     @staticmethod
-    def get_subtopic_pattern(subject, shallow):
-        """Build a pattern for matching subtopics of a subject.
+    def get_subtopic_pattern(channel, shallow):
+        """Build a pattern for matching subtopics of a channel.
 
-        :param subject: The base subject
-        :param boolean shallow: If set, build subject matching direct children.
-            Otherwise build a subject matching all descendents of a subject.
-        :returns: The subtopic subject
+        :param channel: The base channel
+        :param boolean shallow: If set, build channel matching direct children.
+            Otherwise build a channel matching all descendents of a channel.
+        :returns: The subtopic channel
         :rtype: string
 
         """
-        return '.'.join([subject, '*'])
+        return '.'.join([channel, '*'])
 
-    def subscribe_subtopics(self, subject, callback, shallow=True):
-        """Subscribe to subtopics of a subject.
+    def subscribe_subtopics(self, channel, callback, shallow=True):
+        """Subscribe to subtopics of a channel.
 
-        :param string subject: root subject
+        :param string channel: root channel
         :param function callback: Callback to execute when receiving a message
             from any subtopic
         :param boolean shallow: If set, only subscribe to direct children.
-            Otherwise subscribe to all descendents of a subject.
+            Otherwise subscribe to all descendents of a channel.
 
         """
-        subject = self.get_subtopic_pattern(subject, shallow)
-        self.subscribe(subject, callback)
+        channel = self.get_subtopic_pattern(channel, shallow)
+        self.subscribe(channel, callback)

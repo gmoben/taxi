@@ -29,11 +29,9 @@ LOG = structlog.getLogger()
 try:
     config_path = os.environ['TAXI_CONFIG']
     config = ConfigObj(load_yaml(config_path))
+    LOG.info('Loaded config', config=config, path=config_path)
 except KeyError:
     raise RuntimeError("Required environment variable not set")
 except:
     LOG.exception('Error loading config')
     raise
-
-
-LOG = LOG.bind(engine=config['engine'])
