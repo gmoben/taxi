@@ -36,7 +36,7 @@ class AbstractEngine(object):
         raise NotImplementedError
 
     @abstractproperty
-    def connected(self, host=None, port=None):
+    def connected(self):
         """Inspect if the client is currently connected
 
         :returns: connection status
@@ -70,20 +70,20 @@ class AbstractEngine(object):
         """Transform incoming messages before executing callbacks.
 
         :param string msg: The raw incoming message
-        :returns: Parsed message containing the keys 'subject', 'payload', and 'meta'
+        :returns: Parsed message containing the keys 'subject', 'data', and 'meta'
 
         """
-        # Build an empty message with the raw message contents as the payload
+        # Build an empty message with the raw message contents as the data
         parsed_message = defaultdict(str)
-        parsed_message['payload'] = msg
+        parsed_message['data'] = msg
         return parsed_message
 
     @abstractmethod
-    def publish(self, subject, payload, wait=False, **options):
-        """Publish a payload to a subject.
+    def publish(self, subject, data, wait=False, **options):
+        """Publish a data to a subject.
 
         :param string subject: The destination channel
-        :param string payload: UTF-8 encoded message payload
+        :param string data: UTF-8 encoded message data
         :param boolean wait: Wait for reciept from server
         :param **options: Any additional options for the implementation
 

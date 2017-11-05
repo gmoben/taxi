@@ -1,14 +1,12 @@
-import logging
-import os
-import sys
-import time
 from pprint import pformat
+
+import structlog
 
 from taxi import Worker
 from taxi.util import subtopic
 
-logging.basicConfig(stream=sys.stdout)
-LOG = logging.getLogger(__name__)
+
+LOG = structlog.getLogger(__name__)
 
 
 _LogWorker = Worker('logging')

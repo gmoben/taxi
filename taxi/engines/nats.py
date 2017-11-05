@@ -129,7 +129,7 @@ class ConcreteEngine(AbstractEngine):
             try:
                 msg = self._telnet.read_until(delimiter).decode('utf-8')
                 if msg.startswith('MSG'):
-                    # Append the payload
+                    # Append the data
                     msg += self._telnet.read_until(delimiter).decode('utf-8')
                 self.log.debug('Message recieved', message=msg)
                 yield msg
@@ -155,21 +155,20 @@ class ConcreteEngine(AbstractEngine):
 
     def parse_message(self, msg):
         log = self.log.bind(raw_message=msg)
-        parsed_msg = super(ConcreteEngine, self).parse_message(msg)
         if msg.startswith('PING'):
             self.pong()
         elif msg.startswith('MSG'):
-            # Split between header and payload
+            # Split between header and data
             split_msg = msg.strip().split('\r\n')
 
-            # Abort if no payload
+            # Abort if no data
             if len(split_msg) != 2:
                 log.error('Invalid message format')
                 return None
 
             # Split header and remove MSG and bytes_count
             header = split_msg[0].split()[1:-1]
-            payload = split_msg[1]
+            data = split_msg[1]
 
             # Abort if invalid message
             if len(header) not in [2, 3]:
@@ -181,7 +180,10 @@ class ConcreteEngine(AbstractEngine):
                 # Set reply_to to None
                 header.append(None)
             parsed_msg = dict(zip(fields, header))
-            parsed_msg['payload'] = payload
+            parsed_msg['data'] = data
+
+            for k, v in parsed_msg.items():
+                setattr(parsed_msg, k, v)
 
             log.debug('Message parsed', parsed_message=parsed_msg)
 
@@ -212,12 +214,12 @@ class ConcreteEngine(AbstractEngine):
 
         return '{}{}'.format(subject, suffix)
 
-    def publish(self, subject, payload, reply_to=None, wait=False):
+    def publish(self, subject, data, reply_to=None, wait=False):
         # TODO: Implement wait
-        self.log.debug('Publish', subject=subject, payload=payload, reply_to=reply_to, wait=wait)
+        self.log.debug('Publish', subject=subject, data=data, reply_to=reply_to, wait=wait)
 
-        args = [str(x) for x in [subject, reply_to, len(payload)] if x is not None]
-        return self._write('PUB {}\r\n{}\r\n'.format(' '.join(args), payload))
+        args = [str(x) for x in [subject, reply_to, len(data)] if x is not None]
+        return self._write('PUB {}\r\n{}\r\n'.format(' '.join(args), data))
 
     def subscribe(self, subject, callback=None, queue_group=None, sync=False, wait=False):
         """Subscribe to a subject.

@@ -15,7 +15,7 @@ try:
 except KeyError:
     raise RuntimeError("Required environment variable not set")
 except:
-    LOG.exception()
+    LOG.exception('Error loading config')
     raise
 
 

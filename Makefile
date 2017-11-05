@@ -16,7 +16,7 @@ build:
 	echo $(shell echo $(BASE_DIR))
 	docker build -t ${PROJECT} -t ${IMAGE} .
 
-_nocache:
+nocache:
 	docker build --no-cache -t ${PROJECT} -t ${IMAGE} .
 
 test: nats

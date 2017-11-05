@@ -14,7 +14,6 @@ RUN pip install -r requirements.test
 
 COPY $SOURCE_DIR $PYLIBS/$PROJECT_NAME
 
-ENV TAXI_HOST=nats \
-    TAXI_PORT=4222
+ENV TAXI_CONFIG=/opt/taxi/config/default.yaml
 
-EXPOSE ${TAXI_PORT}
+EXPOSE 4442

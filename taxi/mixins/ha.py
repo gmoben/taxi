@@ -2,9 +2,11 @@ import structlog
 
 from taxi.mixins import ClientMixin
 
-from taxi.util import subtopic
+from taxi.util import subtopic, StringTree
 
 LOG = structlog.getLogger(__name__)
+
+HA = StringTree('ha', ['work', 'status'])
 
 
 class NodeMixin(ClientMixin):
@@ -36,27 +38,25 @@ class ManagerMixin(NodeMixin):
         """
 
         responses = []
-
         def on_response(msg):
             responses += msg
 
         self.request(subtopic(HA.STATUS, self.NAMESPACE), None, on_response, timeout)
-
         return responses
 
-    def publish_work(self, payload, worker_id=None):
-        """Publish a work payload.
+    def publish_work(self, data, worker_id=None):
+        """Publish work data.
 
-        If ``worker_id`` is defined, send payload to a specific worker without broadcasting.
+        If ``worker_id`` is defined, send data to a specific worker without broadcasting.
 
-        :param string payload: Payload to deliever
-        :param string worker_id: Specific worker ID to recieve payload (don't broadcast)
+        :param string data: Data to deliever
+        :param string worker_id: Specific worker ID to recieve data (don't broadcast)
 
         """
         if worker_id:
-            self.publish(subtopic(HA.WORK, self.NAMESPACE, worker_id), payload)
+            self.publish(subtopic(HA.WORK, self.NAMESPACE, worker_id), data)
         else:
-            self.publish(subtopic(HA.WORK, self.NAMESPACE), payload)
+            self.publish(subtopic(HA.WORK, self.NAMESPACE), data)
 
 
 class WorkerMixin(NodeMixin):

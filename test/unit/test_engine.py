@@ -35,7 +35,7 @@ def test_publish(engine):
 
 def test_subscribe(engine, engine_cls):
     channel = 'test'
-    payload = 'payload'
+    data = 'data'
 
     callback = mock.MagicMock(return_value=None)
 
@@ -47,7 +47,7 @@ def test_subscribe(engine, engine_cls):
 
     e2 = engine_cls()
     e2.connect()
-    e2.publish(channel, payload)
+    e2.publish(channel, data)
 
     assert next(msgs).startswith('MSG')
 
@@ -66,7 +66,7 @@ def wait_for_callback(callback):
 
 def test_unsubscribe(engine, engine_cls):
     channel = 'test'
-    payload = 'payload'
+    data = 'data'
 
     assert engine.unsubscribe(channel) is False
 
@@ -76,12 +76,12 @@ def test_unsubscribe(engine, engine_cls):
 
     e2 = engine_cls()
     e2.connect()
-    e2.publish(channel, payload)
+    e2.publish(channel, data)
     e2.disconnect()
 
     engine.unsubscribe(channel)
 
-    e2.publish(channel, payload)
+    e2.publish(channel, data)
 
 
 def test_pattern_match(engine):

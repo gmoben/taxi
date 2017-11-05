@@ -96,11 +96,11 @@ class ClientMixin(Wrappable):
             return imethod(*args, **kwargs)
         return self.subscription_queue.append((args, kwargs))
 
-    def request(self, subject, payload, callback, timeout):
+    def request(self, subject, data, callback, timeout):
         reply_to = subtopic('INBOX', self.guid)
 
         self.subscribe(reply_to, callback)
-        self.publish(subject, payload, reply_to=reply_to)
+        self.publish(subject, data, reply_to=reply_to)
 
         time.sleep(timeout)
         self.unsubscribe(reply_to)

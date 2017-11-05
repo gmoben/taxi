@@ -71,7 +71,7 @@ class Wrappable(object):
     """
 
     def __init__(self, *args, **kwargs):
-        self._wrapper_map = defaultdict(lambda: defaultdict(lambda: list()))
+        self._wrapper_map = threadsafe_defaultdict(lambda: threadsafe_defaultdict(lambda: list()))
 
     def __getattribute__(self, name):
         """ Intercept attributes and execute callaround functions if they exist"""
