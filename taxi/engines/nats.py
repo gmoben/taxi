@@ -161,14 +161,19 @@ class ConcreteEngine(AbstractEngine):
         return False
 
     def parse_message(self, msg):
+        meta = AttrDict(op=None, sid=None, reply_to=None)
+        parsed_msg = AttrDict(channel='', meta=meta, data=None)
+
         if msg is None:
             self.log.error('Message was NoneType', msg=msg)
-            return msg
+            return parsed_msg
+
         msg = msg.strip()
         op, _, body = msg.partition(' ')
+
+        meta.op = op
+
         log = self.log.bind(op=op)
-        meta = AttrDict(op=op, sid=None, reply_to=None)
-        parsed_msg = AttrDict(channel='', meta=meta, data=None)
         if op == 'PING':
             self.pong()
         elif op == 'INFO':
