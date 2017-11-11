@@ -59,9 +59,9 @@ class Executor(object):
         def _wrapped_func(*args, **kwargs):
             log = LOG.bind(fqn=fqn(func))
             try:
-                func(*args, **kwargs)
+                return func(*args, **kwargs)
             except Exception as e:
-                self.log.exception(exc_info=e)
+                self.log.exception('Submitted function raised exception', exc_info=e)
                 raise
 
         task = self.pool.submit(_wrapped_func, *args, **kwargs)
@@ -85,7 +85,7 @@ class Executor(object):
         :param func callback: Callback to register
         """
         with self.registry_lock:
-            self.log.debug('Registering callback', callback=fqn(callback))
+            self.log.debug('Registering callback', callback=callback)
             self.registry.add(callback)
             return True
 
@@ -207,7 +207,7 @@ class DispatchGroup(object):
         :param string executor_name: If specified, only execute
                                      callbacks under this executor name
         """
-        log = self.log.bind(fqn=fqn(callback),
+        log = self.log.bind(callback=callback,
                             executor_name=executor_name)
 
         try:
@@ -226,7 +226,7 @@ class DispatchGroup(object):
         :param func callback: Callback to remove
         :param string executor_name: If specified, only remove callbacks with this name
         """
-        log = self.log.bind(fqn=fqn(callback),
+        log = self.log.bind(callback=callback,
                             executor_name=executor_name)
 
         with self._lock:
@@ -274,7 +274,7 @@ class DispatchGroup(object):
                 executors = self.executors.values()
 
             results = []
-            for ex in executors:
+            for ex in list(executors):
                 if remove_executors:
                     results += [self.remove_executor(ex.name, wait)]
                 else:

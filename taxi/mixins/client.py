@@ -68,7 +68,7 @@ class ClientMixin(Wrappable):
                 log.debug('Matching pattern found', pattern=pattern)
                 group.dispatch(msg)
 
-    def register_callback(self, pattern, callback, sync=False, label=None, max_workers=None):
+    def register_callback(self, pattern, callback, sync=False, label=None, max_workers=None, **kwargs):
         label = label or ('sync' if sync is True else ('async' if sync is False else label))
         max_workers = 1 if sync else max_workers
         if not pattern in self.dispatcher.groups:
@@ -97,6 +97,7 @@ class ClientMixin(Wrappable):
         return self.subscription_queue.append((args, kwargs))
 
     def request(self, channel, data, callback, timeout):
+        self.log.info('Request', channel=channel, data=data, callback=callback, timeout=timeout)
         reply_to = subtopic('INBOX', self.guid)
 
         self.subscribe(reply_to, callback)

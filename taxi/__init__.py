@@ -6,7 +6,7 @@ from taxi.util import get_concrete_engine
 ConcreteEngine = get_concrete_engine(config['engine'])
 
 
-def Node(node_type, *namespaces):
+def Node(*namespaces):
     return NodeFactory(ConcreteEngine, *namespaces)
 
 

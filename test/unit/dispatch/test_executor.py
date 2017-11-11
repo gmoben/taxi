@@ -36,7 +36,7 @@ def test_submit(executor, mock_submissions):
     assert future.exception(timeout=3) == exception
 
     # Saturate the pool and cancel a queued task
-    sleepy = mock.Mock(side_effect=lambda: time.sleep(1))
+    sleepy = mock.Mock(side_effect=lambda: time.sleep(2))
     for _ in range(executor.pool._max_workers):
         executor.submit(sleepy)
     cancelme = executor.submit(sleepy)

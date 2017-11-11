@@ -1,4 +1,4 @@
-import logging
+import structlog
 import threading
 import imp
 import importlib
@@ -8,7 +8,10 @@ from collections import defaultdict, deque, namedtuple
 import six
 import yaml
 
-LOG = logging.getLogger()
+import taxi.common
+
+
+LOG = structlog.get_logger(__name__)
 
 
 def load_yaml(filename):
@@ -85,18 +88,27 @@ class Wrappable(object):
         if callable(attr) and name in self._wrapper_map.keys():
             callarounds = self._wrapper_map[name]
             if callarounds:
-                func = callarounds['override'] or attr
+                log = LOG.bind(attr=callable_fqn(attr))
                 @six.wraps(attr)
                 def metawrapper(*args, **kwargs):
                     try:
-                        LOG.debug('%s before -  %s', callable_fqn(attr), callarounds['before'])
-                        [x(*args, **kwargs) for x in callarounds['before']]
-                        LOG.debug('%s func %s', callable_fqn(attr), callable_fqn(func))
-                        result = func(attr, *args, **kwargs) if func != attr else func(*args, **kwargs)
-                        LOG.debug('%s after - %s', callable_fqn(attr), callarounds['after'])
-                        [x(result, *args, **kwargs) for x in callarounds['after']]
+                        if 'before' in callarounds:
+                            log.debug('Callaround before', funcs=callarounds['before'])
+                            [x(*args, **kwargs) for x in callarounds['before']]
+
+                        if 'override' in callarounds:
+                            func = callarounds['override']
+                            log.debug('Callaround override', func=callable_fqn(func))
+                            result = func(attr, *args, **kwargs)
+                        else:
+                            result = attr(*args, **kwargs)
+
+                        if 'after' in callarounds:
+                            log.debug('Callaround after', funcs=callarounds['after'])
+                            [x(result, *args, **kwargs) for x in callarounds['after']]
+
                     except Exception as e:
-                        LOG.exception('Unhandled exception in %s', self)
+                        LOG.exception('Unhandled exception', cls=self.__class__.__name__, exc_info=e)
                 return metawrapper
         return attr
 

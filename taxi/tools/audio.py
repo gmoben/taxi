@@ -87,7 +87,7 @@ class AudioPlaybackWorker(Worker(NAMESPACE)):
         self.sample_format = 's16p'
         self.audio_layout = 'mono'
 
-    def run(self, msg):
+    def on_work(self, msg):
         audio_id = str(uuid.uuid4())
         audio_path = str(msg.data)
         self.play_audio(audio_path, audio_id)

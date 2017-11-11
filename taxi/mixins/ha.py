@@ -27,7 +27,7 @@ class NodeMixin(ClientMixin):
 
 class ManagerMixin(NodeMixin):
 
-    def poll_workers(self, timeout=5):
+    def poll_workers(self, on_response, timeout=5):
         """Send a status request to workers in this namespace.
 
         :param timeout: Length of time to wait for responses
@@ -35,13 +35,7 @@ class ManagerMixin(NodeMixin):
         :rtype: list
 
         """
-
-        responses = []
-        def on_response(msg):
-            responses += msg
-
-        self.request(subtopic(HA.STATUS, self.NAMESPACE), None, on_response, timeout)
-        return responses
+        self.request(subtopic(HA.STATUS, self.NAMESPACE), 'poll', on_response, timeout)
 
     def publish_work(self, data, worker_id=None):
         """Publish work data.
@@ -64,17 +58,17 @@ class WorkerMixin(NodeMixin):
     def __init__(self, *args, **kwargs):
         """Initialize the worker and subscribe to work channels for the namespace"""
         super(WorkerMixin, self).__init__(*args, **kwargs)
-
         self.after('connect', self._subscribe_ha)
+        self._subscribe_ha()
 
     def _subscribe_ha(self, *args, **kwargs):
-        self.subscribe(subtopic(HA.WORK, self.NAMESPACE), self.run, queue_group=self.NAMESPACE)
-        self.subscribe(subtopic(HA.WORK, self.NAMESPACE, str(self.guid)), self.run)
-        self.subscribe(subtopic(HA.STATUS, self.NAMESPACE), lambda msg: self.publish(msg['reply_to'], self.status))
+        self.subscribe(subtopic(HA.WORK, self.NAMESPACE), self.on_work, queue_group=self.NAMESPACE)
+        self.subscribe(subtopic(HA.WORK, self.NAMESPACE, str(self.guid)), self.on_work)
+        self.subscribe(subtopic(HA.STATUS, self.NAMESPACE), lambda msg: self.publish(msg.meta.reply_to, self.get_status()))
 
-    def status(self):
+    def get_status(self):
         return '{} LISTENING'.format(self.guid)
 
-    def on_msg(self, msg):
+    def on_work(self, msg):
         """Define this in your subclass"""
         pass

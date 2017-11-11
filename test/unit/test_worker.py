@@ -2,9 +2,9 @@ import mock
 import pytest
 
 
-def test_status(worker):
+def test_status(Worker):
     pytest.skip()
 
 
-def test_run(worker):
+def test_run(Worker):
     pytest.skip()

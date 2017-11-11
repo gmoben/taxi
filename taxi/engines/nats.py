@@ -140,6 +140,9 @@ class ConcreteEngine(AbstractEngine):
             except EOFError:
                 self.log.exception('No more messages')
                 self.disconnect()
+            except GeneratorExit:
+                self.log.debug('GeneratorExit during listen')
+                self.disconnect()
             except:
                 self.log.exception('Unhandled exception while listening')
                 self.disconnect()
@@ -158,6 +161,9 @@ class ConcreteEngine(AbstractEngine):
         return False
 
     def parse_message(self, msg):
+        if msg is None:
+            self.log.error('Message was NoneType', msg=msg)
+            return msg
         msg = msg.strip()
         op, _, body = msg.partition(' ')
         log = self.log.bind(op=op)
@@ -171,15 +177,19 @@ class ConcreteEngine(AbstractEngine):
             parsed_msg.data = body
         elif op == 'MSG':
             # Split between header and data
-            split_msg = msg.strip().split('\r\n')
+            split_msg = body.strip().split('\r\n')
+
+            # Add empty string as data portion
+            if len(split_msg) == 1 and split_msg[0].endswith('0'):
+                split_msg += ['']
 
             # Abort if no data
             if len(split_msg) != 2:
-                log.error('Invalid message format')
+                log.error('Invalid message format', split_msg=split_msg)
                 return None
 
-            # Split header and remove MSG and bytes_count
-            header = split_msg[0].split()[1:-1]
+            # Split header and remove bytes_count
+            header = split_msg[0].split()[0:-1]
             data = split_msg[1]
 
             # Abort if invalid message

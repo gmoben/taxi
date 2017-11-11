@@ -1,33 +1,33 @@
 import pytest
 
 
-def test_locked_cache(client):
+def test_locked_cache(Client):
     pytest.skip()
 
 
-def test_flush_subscriptions(client):
+def test_flush_subscriptions(Client):
     pytest.skip()
 
 
-def test_consume(client):
+def test_consume(Client):
     pytest.skip()
 
 
-def test_handle_message(client):
+def test_handle_message(Client):
     pytest.skip()
 
 
-def test_register_callback(client):
+def test_register_callback(Client):
     pytest.skip()
 
 
-def test_unregister_callback(client):
+def test_unregister_callback(Client):
     pytest.skip()
 
 
-def test_queue_subscription(client):
+def test_queue_subscription(Client):
     pytest.skip()
 
 
-def test_request(client):
+def test_request(Client):
     pytest.skip()

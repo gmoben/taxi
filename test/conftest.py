@@ -154,20 +154,20 @@ def engine(engine_cls):
 
 
 @pytest.fixture(scope='function')
-def client(engine_cls):
+def Client(engine_cls):
     yield ClientFactory(engine_cls)
 
 
 @pytest.fixture(scope='function')
-def node(engine_cls):
+def Node(engine_cls):
     yield NodeFactory(engine_cls, 'test')
 
 
 @pytest.fixture(scope='function')
-def manager(engine_cls):
+def Manager(engine_cls):
     yield ManagerFactory(engine_cls, 'test')
 
 
 @pytest.fixture(scope='function')
-def worker(engine_cls):
+def Worker(engine_cls):
     yield WorkerFactory(engine_cls, 'test')
