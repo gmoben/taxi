@@ -14,6 +14,7 @@ PHONY += nats
 nats: nats_network
 	-docker run -d --rm \
 		--name ${NATS} \
+		-p 4222:4222 \
 		--network ${NATS_NETWORK} \
 		library/nats
 
