@@ -1,0 +1,14 @@
+###
+# Hierarchy of subject/channel names.
+###
+
+log:
+  - info
+  - warning
+  - debug
+  - error
+  - exception
+
+ha:
+  - work
+  - status

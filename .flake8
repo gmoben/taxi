@@ -1,0 +1,5 @@
+# -*- mode: any-ini -*-
+# vi: set ft=dosini
+[flake8]
+max-line-length = 110
+exclude = .git, __pycache__

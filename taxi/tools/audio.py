@@ -1,9 +1,12 @@
 import base64
-import logging
 import time
 import uuid
 
-import av
+try:
+    import av
+except ImportError:
+    pass
+
 import structlog
 
 from taxi import Manager, Worker

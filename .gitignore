@@ -7,3 +7,4 @@ GTAGS
 GRTAGS
 .cache
 /coverage
+/docs/_build
