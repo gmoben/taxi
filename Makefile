@@ -52,6 +52,11 @@ test_driver:
 		$(IMAGE) \
 		test 100 test
 
+upload:
+	python3 -m pip install --user --upgrade setuptools wheel twine
+	python3 setup.py sdist bdist_wheel --universal
+	twine upload dist/*
+
 bash:
 	docker run -it --rm \
 		--name $(PROJECT) \

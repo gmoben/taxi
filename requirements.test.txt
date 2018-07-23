@@ -1,0 +1,5 @@
+Adafruit_MCP9808==1.5.3
+ipdb==0.10.3
+mock==2.0.0
+pytest-cov==2.5.1
+pytest==3.2.3

@@ -1,12 +1,6 @@
-Adafruit_MCP9808==1.5.3
 PyYAML==3.12
 Sphinx==1.7.1
 colorama==0.3.9
 configobj==5.0.6
 six==1.11.0
 structlog==17.2.0
-
-ipdb==0.10.3
-mock==2.0.0
-pytest-cov==2.5.1
-pytest==3.2.3

@@ -8,3 +8,6 @@ GRTAGS
 .cache
 /coverage
 /docs/_build
+*.egg-info
+dist
+build

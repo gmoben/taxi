@@ -18,6 +18,7 @@ COPY MANIFEST.in .
 COPY $SOURCE_DIR ./$SOURCE_DIR
 RUN python setup.py develop
 
+
 ENTRYPOINT ["taxi", "start"]
 
 EXPOSE 4442
